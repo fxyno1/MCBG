@@ -1,6 +1,7 @@
 package edu.mc.manager;
 
 import edu.mc.ChickenDinnerPlugin;
+import edu.mc.GameConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -30,22 +31,31 @@ public class FlightManager {
         this.plugin = plugin;
     }
 
-    public void startFlight(java.util.Collection<UUID> alivePlayers) {
+    public void prepareFlightPath() {
+        if (startPoint != null && endPoint != null)
+            return; // 避免重复生成
+
         World world = Bukkit.getWorlds().get(0);
         double angle = Math.random() * Math.PI * 2;
-        double radius = 220.0; 
-        
-        double startX = 0 + Math.cos(angle) * radius;
-        double startZ = 16 + Math.sin(angle) * radius;
-        
-        double endX = 0 - Math.cos(angle) * radius;
-        double endZ = 16 - Math.sin(angle) * radius;
 
-        startPoint = new Location(world, startX, 150, startZ);
-        endPoint = new Location(world, endX, 150, endZ);
+        double startX = GameConfig.MAP_CENTER_X + Math.cos(angle) * GameConfig.FLIGHT_RADIUS;
+        double startZ = GameConfig.MAP_CENTER_Z + Math.sin(angle) * GameConfig.FLIGHT_RADIUS;
 
-        // 恢复平缓原速：由于 Minecraft 的速度是持续应用的，无需×4放大。1.0/600.0 是最合适的航班移动速度。
-        flightDir = endPoint.toVector().subtract(startPoint.toVector()).multiply(1.0 / 600.0);
+        double endX = GameConfig.MAP_CENTER_X - Math.cos(angle) * GameConfig.FLIGHT_RADIUS;
+        double endZ = GameConfig.MAP_CENTER_Z - Math.sin(angle) * GameConfig.FLIGHT_RADIUS;
+
+        startPoint = new Location(world, startX, GameConfig.FLIGHT_ALTITUDE, startZ);
+        endPoint = new Location(world, endX, GameConfig.FLIGHT_ALTITUDE, endZ);
+
+        flightDir = endPoint.toVector().subtract(startPoint.toVector())
+                .multiply(1.0 / GameConfig.FLIGHT_DURATION_TICKS);
+    }
+
+    public void startFlight(java.util.Collection<UUID> alivePlayers) {
+        World world = Bukkit.getWorlds().get(0);
+        if (startPoint == null || endPoint == null) {
+            prepareFlightPath();
+        }
 
         playersOnPlane.clear();
         parachutingPlayers.clear();
@@ -60,13 +70,14 @@ public class FlightManager {
             if (p != null) {
                 playersOnPlane.add(uuid);
                 p.teleport(startPoint);
+                p.setGameMode(org.bukkit.GameMode.SURVIVAL); // 强制设为生存模式，保证落地后能正常开箱、丢弃/拾取物品
                 p.setAllowFlight(true);
                 p.setFlying(true);
                 p.setFlySpeed(0f);
                 p.setWalkSpeed(0f);
-                
+
                 p.getInventory().clear();
-                p.getInventory().setItem(0, plugin.createRadarMap(world));
+                p.getInventory().setItem(0, plugin.createRadarMap(p));
                 p.getInventory().setItem(4, parachuteItem);
                 p.getInventory().setHeldItemSlot(0); // 默认手持第一格，直接展示雷达地图！
                 p.updateInventory();
@@ -75,16 +86,13 @@ public class FlightManager {
 
         Bukkit.broadcastMessage("§e[航线] 飞机已起飞！请在背包中右键羽毛进行跳伞！");
 
-        // 延时 5 ticks 强制刷新所有在线玩家的视野可见性，彻底解决 Spigot 1.8 大跨度同时传送带来的隐形 Bug
-        Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
-            @Override
-            public void run() {
-                for (Player p1 : Bukkit.getOnlinePlayers()) {
-                    for (Player p2 : Bukkit.getOnlinePlayers()) {
-                        if (p1 != p2 && p1.isOnline() && p2.isOnline()) {
-                            p1.hidePlayer(p2);
-                            p1.showPlayer(p2);
-                        }
+        // 延时 5 tick 后一次性刷新所有在线玩家的可见性，解决隐形 Bug
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            for (Player p1 : Bukkit.getOnlinePlayers()) {
+                for (Player p2 : Bukkit.getOnlinePlayers()) {
+                    if (p1 != p2 && p1.isOnline() && p2.isOnline()) {
+                        p1.hidePlayer(p2);
+                        p1.showPlayer(p2);
                     }
                 }
             }
@@ -92,10 +100,11 @@ public class FlightManager {
 
         flightTask = new BukkitRunnable() {
             int ticks = 0;
+
             @Override
             public void run() {
-                ticks += 4;
-                boolean planeActive = ticks <= 600;
+                ticks += GameConfig.FLIGHT_TASK_INTERVAL_TICKS;
+                boolean planeActive = ticks <= GameConfig.FLIGHT_DURATION_TICKS;
 
                 // 处理仍在机舱内的玩家
                 // 使用 Iterator 安全移除，避免每 tick new HashSet<>() 产生的临时对象 GC 压力
@@ -136,15 +145,15 @@ public class FlightManager {
 
                     // 增强版落地检测：检查下方方块 + 速度 + 位置变化
                     boolean isOnGround = p.isOnGround();
-                    
+
                     // 辅助检测：检查下方1-2格是否有实体方块或液体
                     org.bukkit.block.Block b1 = p.getLocation().getBlock().getRelative(0, -1, 0);
                     org.bukkit.block.Block b2 = p.getLocation().getBlock().getRelative(0, -2, 0);
                     boolean b1Hit = b1.getType().isSolid() || b1.isLiquid();
                     boolean b2Hit = b2.getType().isSolid() || b2.isLiquid();
-                    
+
                     boolean velocityNearZero = p.getVelocity().length() < 0.1;
-                    
+
                     if (isOnGround || (b1Hit && velocityNearZero) || b2Hit) {
                         paraIter.remove();
                         p.sendMessage("§a[降落] 成功着陆！开始搜刮物资吧！");
@@ -152,6 +161,8 @@ public class FlightManager {
                         p.setNoDamageTicks(60);
                         p.setWalkSpeed(0.2f);
                         p.setFlySpeed(0.1f);
+                        p.setFlying(false); // 落地后必须关闭飞行状态
+                        p.setAllowFlight(false); // 落地后必须关闭允许飞行权限，恢复正常地面行走交互
 
                         // 延迟 2 ticks 强制刷新当前落地玩家与其他玩家的互相可见性，解决 Spigot 1.8.8 跨度传送后的隐形 Bug
                         final Player finalP = p;
@@ -171,11 +182,11 @@ public class FlightManager {
                             }
                         }, 2L);
                     } else {
-                        // 每 4 tick 更新一次速度
+                        // 每 2 tick 更新一次速度（更高频率使旁观者看到的人物动作更流畅）
                         Vector look = p.getLocation().getDirection();
-                        look.setY(-0.2); // 较缓的下落速率，滞空时间更长
-                        look.setX(look.getX() * 1.5); // 水平滑翔速度提升至 1.5 倍，飞得极快、极远
-                        look.setZ(look.getZ() * 1.5);
+                        look.setY(GameConfig.PARACHUTE_FALL_SPEED);
+                        look.setX(look.getX() * GameConfig.PARACHUTE_GLIDE_MULTIPLIER);
+                        look.setZ(look.getZ() * GameConfig.PARACHUTE_GLIDE_MULTIPLIER);
                         p.setVelocity(look);
                         p.setFallDistance(0f);
                     }
@@ -187,7 +198,7 @@ public class FlightManager {
                 }
             }
         };
-        flightTask.runTaskTimer(plugin, 1L, 4L);
+        flightTask.runTaskTimer(plugin, 1L, GameConfig.FLIGHT_TASK_INTERVAL_TICKS);
     }
 
     public void forceJump(Player p) {

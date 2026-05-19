@@ -5,6 +5,8 @@ import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import edu.mc.ChickenDinnerPlugin;
+import edu.mc.GameConfig;
 import org.bukkit.Location;
 
 public class ZoneManager {
@@ -13,12 +15,12 @@ public class ZoneManager {
     private final World gameWorld;
     private int phase = -1;
 
-    // 阶段对应的尺寸（直径）
-    private final double[] phaseSizes = { 400.0, 250.0, 150.0, 50.0, 20.0, 5.0 };
+    // 阶段对应的尺寸（直径）—— 已调整为原始值的 3/5，增加游戏挑战性
+    private final double[] phaseSizes = GameConfig.ZONE_SIZES;
     // 缩圈时间（秒）
-    private final int[] phaseTimes = { 120, 100, 80, 60, 45, 30 };
+    private final int[] phaseTimes = GameConfig.ZONE_SHRINK_TIMES;
     // 毒圈伤害（每两秒伤害量，1.0=半颗心）
-    private final double[] phaseDamages = { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
+    private final double[] phaseDamages = GameConfig.ZONE_DAMAGES;
 
     private org.bukkit.scheduler.BukkitTask shrinkTask;
 
@@ -33,7 +35,8 @@ public class ZoneManager {
     }
 
     public void initBorder() {
-        if (gameWorld == null) return;
+        if (gameWorld == null)
+            return;
         WorldBorder border = gameWorld.getWorldBorder();
 
         border.setCenter(0, 16);
@@ -58,7 +61,8 @@ public class ZoneManager {
 
     public void generateNextZone() {
         int nextPhase = phase + 1;
-        if (nextPhase >= phaseSizes.length) return; // 已经到最后一圈，没有下一波了
+        if (nextPhase >= phaseSizes.length)
+            return; // 已经到最后一圈，没有下一波了
 
         // 当前作为基准的圈（如果游戏还没开始，基准是 600 直径）
         double currentSize = (phase == -1) ? 600.0 : phaseSizes[phase];
@@ -83,9 +87,11 @@ public class ZoneManager {
     }
 
     public void applyZoneDamage() {
-        if (phase < 0 || gameWorld == null) return;
+        if (phase < 0 || gameWorld == null)
+            return;
         double damage = phaseDamages[phase];
-        if (damage <= 0) return;
+        if (damage <= 0)
+            return;
 
         WorldBorder border = gameWorld.getWorldBorder();
         double size = border.getSize();
@@ -94,7 +100,8 @@ public class ZoneManager {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (p.getGameMode() == org.bukkit.GameMode.SPECTATOR || p.getGameMode() == org.bukkit.GameMode.CREATIVE)
                 continue;
-            if (!p.getWorld().equals(gameWorld)) continue;
+            if (!p.getWorld().equals(gameWorld))
+                continue;
 
             // 方形毒圈判定：X 或 Z 超出半径即扣血
             double dx = Math.abs(p.getLocation().getX() - center.getX());
@@ -113,8 +120,10 @@ public class ZoneManager {
     }
 
     public void shrinkToNextPhase() {
-        if (gameWorld == null) return;
-        if (phase >= phaseSizes.length - 1) return;
+        if (gameWorld == null)
+            return;
+        if (phase >= phaseSizes.length - 1)
+            return;
 
         if (shrinkTask != null) {
             shrinkTask.cancel();
@@ -132,20 +141,21 @@ public class ZoneManager {
         final double finalTargetSize = this.targetSize;
 
         phase++; // 进入下一阶段
-        
+
         int timeToShrink = phaseTimes[phase];
         final int totalTicks = timeToShrink * 20;
 
         if (finalTargetSize < currentSize) {
             shrinkTask = new org.bukkit.scheduler.BukkitRunnable() {
                 int currentTick = 0;
+
                 @Override
                 public void run() {
                     if (currentTick >= totalTicks) {
                         border.setCenter(finalTargetX, finalTargetZ);
                         this.cancel();
                         shrinkTask = null;
-                        
+
                         // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段的白圈参数！
                         generateNextZone();
                         Bukkit.broadcastMessage("§a[安全区] 毒圈收缩完毕。下一波安全区（白色区域）已在GPS雷达中标出！");
@@ -166,6 +176,20 @@ public class ZoneManager {
         border.setSize(finalTargetSize, timeToShrink);
 
         Bukkit.broadcastMessage("§c[安全区] 第" + (phase + 1) + "级毒圈开始向白圈位置收缩！");
+
+        Bukkit.getOnlinePlayers().forEach(p -> {
+            ((ChickenDinnerPlugin) plugin).sendTitle(p, "§c边界开始收缩", "§e请尽快前往白圈安全区！", 10, 60, 10);
+        });
+
+        // 每次开始缩圈时，在目标白圈内生成一个空投
+        ((ChickenDinnerPlugin) plugin).getAirdropManager().spawnAirdrop(finalTargetX, finalTargetZ, finalTargetSize);
+    }
+
+    /**
+     * 当前阶段是否仍在收缩动画中（用于 GameManager 判断是否暂停下一波收缩倒数）
+     */
+    public boolean isShrinking() {
+        return shrinkTask != null;
     }
 
     public double getTargetX() {

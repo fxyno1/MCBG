@@ -1,6 +1,7 @@
 package edu.mc.command;
 
 import edu.mc.ChickenDinnerPlugin;
+import edu.mc.GameConfig;
 import edu.mc.state.GameState;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -25,24 +26,26 @@ public class HubCommand implements CommandExecutor {
         }
 
         Player player = (Player) sender;
-        
-        // 游戏大厅坐标 (1387.5, 226.5, 21.5)
-        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), 1387.5, 226.5, 21.5);
+
+        // 游戏大厅坐标
+        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), GameConfig.LOBBY_X, GameConfig.LOBBY_Y,
+                GameConfig.LOBBY_Z);
 
         GameState state = plugin.getCurrentState();
-        
+
         // 如果在比赛准备起飞、飞行或进行阶段，且玩家是存活状态，则需要进行退出/淘汰处理
         if (state == GameState.STARTING || state == GameState.FLIGHT || state == GameState.INGAME) {
             if (plugin.getPlayerManager().isAlive(player)) {
                 // 清理可能存在的飞行状态
                 plugin.getFlightManager().removePlayerFromFlight(player);
-                
+
                 // 将玩家设为旁观者（会自动处理游戏模式和背包清理）
                 plugin.getPlayerManager().setSpectator(player);
-                
+
                 // 广播玩家中途退赛的消息
-                Bukkit.broadcastMessage("§c" + player.getName() + " §e退出了比赛！剩余存活人数: §a" + plugin.getPlayerManager().getAliveCount());
-                
+                Bukkit.broadcastMessage(
+                        "§c" + player.getName() + " §e退出了比赛！剩余存活人数: §a" + plugin.getPlayerManager().getAliveCount());
+
                 // 检查是否仅剩最后一人，是则结束比赛
                 if (plugin.getPlayerManager().getAliveCount() <= 1) {
                     plugin.getGameManager().endGame();
