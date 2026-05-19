@@ -1,0 +1,13 @@
+name: MCBG
+version: '${project.version}'
+main: edu.mc.ChickenDinnerPlugin
+author: YourName
+description: A Battle Royale mini-game plugin for Minecraft 1.8.9.
+commands:
+  chickendinner:
+    description: 吃鸡核心主命令
+    permission: mcbg.admin
+    aliases: [cd]
+  hub:
+    description: 返回游戏大厅/主城
+    aliases: [lobby]
