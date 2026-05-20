@@ -38,9 +38,10 @@ public class GameListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player player = event.getPlayer();
+
+        // 核心修复点：只要有玩家登入，第一件事永远是强刷他的渲染状态线
         plugin.resetPlayerMap(player.getUniqueId());
 
-        // 创造模式玩家（管理员）不参与游戏重置、不分发地图，直接保留状态并发送普通提示
         if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
             event.setJoinMessage("§7[管理员] " + player.getName() + " 进入了服务器。");
             return;
