@@ -15,12 +15,10 @@ public class ZoneManager {
     private final World gameWorld;
     private int phase = -1;
 
-    // 阶段对应的尺寸（直径）—— 已调整为原始值的 3/5，增加游戏挑战性
-    private final double[] phaseSizes = GameConfig.ZONE_SIZES;
-    // 缩圈时间（秒）
-    private final int[] phaseTimes = GameConfig.ZONE_SHRINK_TIMES;
-    // 毒圈伤害（每两秒伤害量，1.0=半颗心）
-    private final double[] phaseDamages = GameConfig.ZONE_DAMAGES;
+    // 阶段对应的尺寸（直径）—— 从 GameConfig 动态获取以支持热重载
+    private double[] getPhaseSizes() { return GameConfig.ZONE_SIZES; }
+    private int[] getPhaseTimes() { return GameConfig.ZONE_SHRINK_TIMES; }
+    private double[] getPhaseDamages() { return GameConfig.ZONE_DAMAGES; }
 
     private org.bukkit.scheduler.BukkitTask shrinkTask;
     private int remainingShrinkSeconds = 0;
@@ -67,15 +65,15 @@ public class ZoneManager {
 
     public void generateNextZone() {
         int nextPhase = phase + 1;
-        if (nextPhase >= phaseSizes.length)
+        if (nextPhase >= getPhaseSizes().length)
             return; // 已经到最后一圈，没有下一波了
 
         // 当前作为基准的圈（如果游戏还没开始，基准是 600 直径）
-        double currentSize = (phase == -1) ? 600.0 : phaseSizes[phase];
+        double currentSize = (phase == -1) ? 600.0 : getPhaseSizes()[phase];
         double currentX = (phase == -1) ? 0.0 : targetX;
         double currentZ = (phase == -1) ? 16.0 : targetZ;
 
-        double nextSize = phaseSizes[nextPhase];
+        double nextSize = getPhaseSizes()[nextPhase];
 
         double currentR = currentSize / 2.0;
         double targetR = nextSize / 2.0;
@@ -95,7 +93,7 @@ public class ZoneManager {
     public void applyZoneDamage() {
         if (phase < 0 || gameWorld == null)
             return;
-        double damage = phaseDamages[phase];
+        double damage = getPhaseDamages()[phase];
         if (damage <= 0)
             return;
 
@@ -128,7 +126,7 @@ public class ZoneManager {
     public void shrinkToNextPhase() {
         if (gameWorld == null)
             return;
-        if (phase >= phaseSizes.length - 1)
+        if (phase >= getPhaseSizes().length - 1)
             return;
 
         if (shrinkTask != null) {
@@ -148,7 +146,7 @@ public class ZoneManager {
 
         phase++; // 进入下一阶段
 
-        int timeToShrink = phaseTimes[phase];
+        int timeToShrink = getPhaseTimes()[phase];
         final int totalTicks = timeToShrink * 20;
 
         if (finalTargetSize < currentSize) {
@@ -218,7 +216,7 @@ public class ZoneManager {
     }
 
     public boolean isMaxPhase() {
-        return phase >= phaseSizes.length - 1;
+        return phase >= getPhaseSizes().length - 1;
     }
 
     public void reset() {

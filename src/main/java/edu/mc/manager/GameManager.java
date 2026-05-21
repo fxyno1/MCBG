@@ -26,7 +26,7 @@ public class GameManager {
     private boolean isPaused = false;
     private int initialPlayerCount = 0;
 
-    private final int minPlayers = GameConfig.MIN_PLAYERS;
+
 
     public GameManager(ChickenDinnerPlugin plugin) {
         this.plugin = plugin;
@@ -71,10 +71,10 @@ public class GameManager {
     private void handleLobbyTick() {
         int currentPlayers = plugin.getPlayerManager().getAliveCount();
 
-        if (currentPlayers < minPlayers) {
+        if (currentPlayers < GameConfig.MIN_PLAYERS) {
             this.countdownTime = GameConfig.LOBBY_COUNTDOWN;
             Bukkit.getOnlinePlayers().forEach(p -> {
-                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a" + minPlayers);
+                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a" + GameConfig.MIN_PLAYERS);
             });
             return;
         }

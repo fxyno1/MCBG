@@ -1,6 +1,7 @@
 package edu.mc.command;
 
 import edu.mc.ChickenDinnerPlugin;
+import edu.mc.GameConfig;
 import edu.mc.state.GameState;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -38,6 +39,7 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_INFO + "/cd stop - 强行终止并重置当前比赛");
             sender.sendMessage(COLOR_INFO + "/cd settime <秒> - 设置当前阶段的剩余秒数");
             sender.sendMessage(COLOR_INFO + "/cd resetmap - 强制刷新所有玩家的GPS雷达地图");
+            sender.sendMessage(COLOR_INFO + "/cd reload - 重新载入配置文件 (config.yml)");
             return true;
         }
 
@@ -61,6 +63,9 @@ public class GameCommand implements CommandExecutor {
             case "resetmap":
                 handleResetMap(sender);
                 break;
+            case "reload":
+                handleReload(sender);
+                break;
             default:
                 sender.sendMessage(COLOR_ERROR + "未知子命令，请直接输入/cd 查看帮助。");
                 break;
@@ -73,12 +78,12 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "游戏已经开始，无法再次强制开始！");
             return;
         }
-        
+
         if (plugin.getGameManager() == null) {
             sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
             return;
         }
-        
+
         plugin.getGameManager().forceStart();
         sender.sendMessage(COLOR_SUCCESS + "已成功强制开始比赛！");
     }
@@ -88,7 +93,7 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
             return;
         }
-        
+
         boolean paused = plugin.getGameManager().togglePause();
         sender.sendMessage(paused ? COLOR_SUCCESS + "游戏倒计时已【暂停】！" : COLOR_SUCCESS + "游戏倒计时已【恢复】！");
     }
@@ -98,7 +103,7 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
             return;
         }
-        
+
         plugin.getGameManager().skipPhase();
         sender.sendMessage(COLOR_SUCCESS + "已跳过当前阶段！");
     }
@@ -108,7 +113,7 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
             return;
         }
-        
+
         plugin.getGameManager().endGame();
         sender.sendMessage(COLOR_ERROR + "已强行终止比赛，正在结算重置...");
     }
@@ -118,12 +123,12 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "使用方法：/cd settime <秒数>");
             return;
         }
-        
+
         if (plugin.getGameManager() == null) {
             sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
             return;
         }
-        
+
         try {
             int seconds = Integer.parseInt(args[1]);
             plugin.getGameManager().setCountdownTime(seconds);
@@ -138,17 +143,40 @@ public class GameCommand implements CommandExecutor {
             sender.sendMessage(COLOR_ERROR + "地图管理器未初始化！");
             return;
         }
-        
+
         plugin.getPacketMapManager().clearAll();
-        
+
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.getGameMode() == GameMode.CREATIVE) continue;
-            
+            if (p.getGameMode() == GameMode.CREATIVE)
+                continue;
+
             plugin.getPacketMapManager().removeMap(p);
             plugin.getPacketMapManager().giveMap(p);
             p.updateInventory();
         }
-        
+
         sender.sendMessage(COLOR_SUCCESS + "§l[系统] 已成功对全服玩家的战术GPS雷达下达了强刷清空指令！");
+    }
+
+    private void handleReload(CommandSender sender) {
+        plugin.reloadConfig();
+        GameConfig.load(plugin.getConfig());
+
+        // 重新设置出生点以防在配置文件中更改了出生点坐标
+        org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
+        mainWorld.setSpawnLocation((int) GameConfig.LOBBY_X, (int) GameConfig.LOBBY_Y, (int) GameConfig.LOBBY_Z);
+
+        if (plugin.getPacketMapManager() != null) {
+            plugin.getPacketMapManager().reload();
+            // 重新发图给所有非创造模式在线玩家
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getGameMode() == org.bukkit.GameMode.CREATIVE)
+                    continue;
+                plugin.getPacketMapManager().removeMap(p);
+                plugin.getPacketMapManager().giveMap(p);
+                p.updateInventory();
+            }
+        }
+        sender.sendMessage(COLOR_SUCCESS + "配置文件重载成功，并已同步更新战术雷达底图及大厅坐标！");
     }
 }

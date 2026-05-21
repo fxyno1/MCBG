@@ -23,6 +23,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private PacketMapManager packetMapManager;
 
     private static String NMS_PACKAGE = null;
+
     public static String getNmsPackage() {
         if (NMS_PACKAGE == null) {
             NMS_PACKAGE = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
@@ -52,7 +53,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
             java.io.File[] files = path.listFiles();
             if (files != null) {
                 for (java.io.File f : files) {
-                    if (f.isDirectory()) deleteDirectory(f);
+                    if (f.isDirectory())
+                        deleteDirectory(f);
                     f.delete();
                 }
             }
@@ -61,7 +63,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     private void copyDirectory(java.io.File source, java.io.File destination) throws java.io.IOException {
         if (source.isDirectory()) {
-            if (!destination.exists()) destination.mkdirs();
+            if (!destination.exists())
+                destination.mkdirs();
             String[] files = source.list();
             if (files != null) {
                 for (String file : files) {
@@ -69,12 +72,16 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
                 }
             }
         } else {
-            java.nio.file.Files.copy(source.toPath(), destination.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            java.nio.file.Files.copy(source.toPath(), destination.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        GameConfig.load(getConfig());
+
         org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
         mainWorld.setSpawnLocation((int) GameConfig.LOBBY_X, (int) GameConfig.LOBBY_Y, (int) GameConfig.LOBBY_Z);
         mainWorld.getWorldBorder().reset();
@@ -99,7 +106,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         this.gameManager = new GameManager(this);
 
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
-        getCommand("chickendinner").setExecutor(new edu.mc.command.GameCommand(this));
+        getCommand("chickendinner").setExecutor(new edu.mc.command.GameCommand(this)); // 注册游戏核心命令
         getCommand("hub").setExecutor(new edu.mc.command.HubCommand(this));
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
 
@@ -108,24 +115,57 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (scoreboardManager != null) scoreboardManager.stop();
-        if (gameManager != null) gameManager.stopTimer();
-        if (airdropManager != null) airdropManager.reset();
-        if (packetMapManager != null) packetMapManager.stop();
+        if (scoreboardManager != null)
+            scoreboardManager.stop();
+        if (gameManager != null)
+            gameManager.stopTimer();
+        if (airdropManager != null)
+            airdropManager.reset();
+        if (packetMapManager != null)
+            packetMapManager.stop();
         getLogger().info("MCBG \u6838\u5fc3\u5df2\u5b89\u5168\u5378\u8f7d\u3002");
     }
 
     // ==================== Managers ====================
-    public edu.mc.manager.PlayerManager getPlayerManager() { return playerManager; }
-    public edu.mc.manager.LootManager getLootManager() { return lootManager; }
-    public edu.mc.manager.HealingManager getHealingManager() { return healingManager; }
-    public edu.mc.manager.AirdropManager getAirdropManager() { return airdropManager; }
-    public edu.mc.manager.ZoneManager getZoneManager() { return zoneManager; }
-    public edu.mc.manager.ScatterManager getScatterManager() { return scatterManager; }
-    public edu.mc.manager.FlightManager getFlightManager() { return flightManager; }
-    public edu.mc.manager.ScoreboardManager getScoreboardManager() { return scoreboardManager; }
-    public PacketMapManager getPacketMapManager() { return packetMapManager; }
-    public GameManager getGameManager() { return gameManager; }
+    public edu.mc.manager.PlayerManager getPlayerManager() {
+        return playerManager;
+    }
+
+    public edu.mc.manager.LootManager getLootManager() {
+        return lootManager;
+    }
+
+    public edu.mc.manager.HealingManager getHealingManager() {
+        return healingManager;
+    }
+
+    public edu.mc.manager.AirdropManager getAirdropManager() {
+        return airdropManager;
+    }
+
+    public edu.mc.manager.ZoneManager getZoneManager() {
+        return zoneManager;
+    }
+
+    public edu.mc.manager.ScatterManager getScatterManager() {
+        return scatterManager;
+    }
+
+    public edu.mc.manager.FlightManager getFlightManager() {
+        return flightManager;
+    }
+
+    public edu.mc.manager.ScoreboardManager getScoreboardManager() {
+        return scoreboardManager;
+    }
+
+    public PacketMapManager getPacketMapManager() {
+        return packetMapManager;
+    }
+
+    public GameManager getGameManager() {
+        return gameManager;
+    }
 
     public void initZoneManager() {
         if (this.zoneManager == null) {
@@ -134,7 +174,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         this.zoneManager.initBorder();
     }
 
-    public GameState getCurrentState() { return currentState; }
+    public GameState getCurrentState() {
+        return currentState;
+    }
+
     public void setCurrentState(GameState newState) {
         this.currentState = newState;
         getLogger().info("[\u72b6\u6001\u673a] \u6e38\u620f\u72b6\u6001\u53d8\u66f4\u81f3: " + newState.name());
@@ -157,7 +200,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private boolean reflectionInitialized = false;
 
     private void initReflection() {
-        if (reflectionInitialized) return;
+        if (reflectionInitialized)
+            return;
         try {
             String nmsPackage = getNmsPackage();
             packetTitleCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle");
@@ -188,7 +232,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     public void sendTitle(Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         try {
             initReflection();
-            if (!reflectionInitialized) return;
+            if (!reflectionInitialized)
+                return;
             Object timePacket = timeConstructor.newInstance(fadeIn, stay, fadeOut);
             sendPacketToPlayer(player, timePacket);
             if (title != null) {
@@ -208,13 +253,15 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     public void sendActionBar(Player player, String message) {
         initReflection();
-        if (!reflectionInitialized) return;
+        if (!reflectionInitialized)
+            return;
         try {
             Object handle = getHandleMethod.invoke(player);
             Object connection = playerConnectionField.get(handle);
             Object chatComponent = chatSerializerMethod.invoke(null, "{\"text\": \"" + message + "\"}");
             Class<?> packetChatCls = Class.forName("net.minecraft.server." + getNmsPackage() + ".PacketPlayOutChat");
-            Object packet = packetChatCls.getConstructor(iChatBaseComponentCls, byte.class).newInstance(chatComponent, (byte) 2);
+            Object packet = packetChatCls.getConstructor(iChatBaseComponentCls, byte.class).newInstance(chatComponent,
+                    (byte) 2);
             sendPacketMethod.invoke(connection, packet);
         } catch (Exception e) {
             e.printStackTrace();
@@ -222,12 +269,14 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     }
 
     /**
-     * \u5bf9\u5916\u5f00\u653e\u7684\u53d1\u5305\u65b9\u6cd5\uff0c\u4f9b PacketMapManager \u7b49\u5176\u4ed6\u7c7b\u8c03\u7528
+     * \u5bf9\u5916\u5f00\u653e\u7684\u53d1\u5305\u65b9\u6cd5\uff0c\u4f9b
+     * PacketMapManager \u7b49\u5176\u4ed6\u7c7b\u8c03\u7528
      */
     public void sendPacketToPlayer(Player player, Object packet) {
         try {
             initReflection();
-            if (!reflectionInitialized) return;
+            if (!reflectionInitialized)
+                return;
             Object handle = getHandleMethod.invoke(player);
             Object playerConnection = playerConnectionField.get(handle);
             sendPacketMethod.invoke(playerConnection, packet);
