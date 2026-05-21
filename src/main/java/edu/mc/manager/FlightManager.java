@@ -62,7 +62,7 @@ public class FlightManager {
 
         ItemStack parachuteItem = new ItemStack(Material.FEATHER);
         ItemMeta meta = parachuteItem.getItemMeta();
-        meta.setDisplayName("§a§l[右键跳伞]");
+        meta.setDisplayName("§a§l[按 Shift 键 / 潜行跳伞]");
         parachuteItem.setItemMeta(meta);
 
         for (UUID uuid : alivePlayers) {
@@ -77,14 +77,14 @@ public class FlightManager {
                 p.setWalkSpeed(0f);
 
                 p.getInventory().clear();
-                p.getInventory().setItem(0, plugin.createRadarMap(p));
+                plugin.getPacketMapManager().giveMap(p);
                 p.getInventory().setItem(4, parachuteItem);
                 p.getInventory().setHeldItemSlot(0); // 默认手持第一格，直接展示雷达地图！
                 p.updateInventory();
             }
         }
 
-        Bukkit.broadcastMessage("§e[航线] 飞机已起飞！请在背包中右键羽毛进行跳伞！");
+        Bukkit.broadcastMessage("§e[航线] 飞机已起飞！请按 Shift 键（潜行）进行跳伞！");
 
         // 延时 5 tick 后一次性刷新所有在线玩家的可见性，解决隐形 Bug
         Bukkit.getScheduler().runTaskLater(plugin, () -> {

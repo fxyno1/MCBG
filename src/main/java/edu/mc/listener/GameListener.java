@@ -35,69 +35,90 @@ public class GameListener implements Listener {
         this.plugin = plugin;
     }
 
+
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player player = event.getPlayer();
 
-        // 核心修复点：只要有玩家登入，第一件事永远是强刷他的渲染状态线
-        plugin.resetPlayerMap(player.getUniqueId());
+        // 进服瞬间设置饥饿度为只差半个鸡腿，并执行一级清洗
+        player.setFoodLevel(19);
+        plugin.getPacketMapManager().removeMap(player);
 
         if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
             event.setJoinMessage("§7[管理员] " + player.getName() + " 进入了服务器。");
             return;
         }
 
-        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), GameConfig.LOBBY_X, GameConfig.LOBBY_Y,
-                GameConfig.LOBBY_Z);
+        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), GameConfig.LOBBY_X, GameConfig.LOBBY_Y, GameConfig.LOBBY_Z);
 
         if (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING) {
             player.setMaxHealth(40.0);
             player.setHealth(40.0);
             player.getInventory().clear();
-            player.getInventory().setItem(0, plugin.createRadarMap(player));
+            
+            // 第一次生成新图分发
+            plugin.getPacketMapManager().giveMap(player);
             player.getInventory().setHeldItemSlot(0);
             player.updateInventory();
 
             plugin.getPlayerManager().addPlayer(player);
-            event.setJoinMessage(
-                    "§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " 人)");
+            event.setJoinMessage("§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " 人)");
 
             // 1. 立即执行传送
             player.teleport(lobbyLoc);
 
             // 2. 延时 2 ticks 执行传送，防止 1.8 登入包覆盖
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
-                        || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
                     player.teleport(lobbyLoc);
                 }
             }, 2L);
 
+            // 延迟 5 ticks 执行强力二次覆写，斩断原版登入包的残存干扰
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                    plugin.getPacketMapManager().removeMap(player);
+                    plugin.getPacketMapManager().giveMap(player);
+                    player.updateInventory();
+                }
+            }, 5L);
+
             // 3. 强力兜底：延时 10 ticks 再次执行传送，确保客户端彻底加载完地图后同步坐标
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
-                        || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
                     player.teleport(lobbyLoc);
                 }
             }, 10L);
+
+            // 【终极兜底方案】延时 25 贴（1.25秒）
+            // 此时客户端彻底稳定进入了大厅场景。在这里下发最后一次物理覆盖包，彻底粉碎各种幽灵残影。
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                    plugin.getPacketMapManager().removeMap(player);
+                    plugin.getPacketMapManager().giveMap(player);
+                    player.updateInventory();
+                }
+            }, 25L);
         } else {
-            // 如果玩家本身就在存活列表中（说明是活人玩家掉线重连），保持生存模式，不要切成旁观者
+            // 如果玩家是战斗中掉线重连
             if (plugin.getPlayerManager().getAlivePlayers().contains(player.getUniqueId())) {
                 player.setGameMode(org.bukkit.GameMode.SURVIVAL);
                 player.setMaxHealth(40.0);
-                // 确保其背包里有雷达地图
-                if (player.getInventory().getItem(0) == null
-                        || player.getInventory().getItem(0).getType() != org.bukkit.Material.MAP) {
-                    player.getInventory().setItem(0, plugin.createRadarMap(player));
-                    player.updateInventory();
-                }
-                player.sendMessage("§a[游戏提示] 欢迎回来！你已重新连接到比赛。");
+                
+                // 掉线重连同样执行 15 ticks 延迟物理灌入覆盖
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (player.isOnline()) {
+                        plugin.getPacketMapManager().removeMap(player);
+                        plugin.getPacketMapManager().giveMap(player);
+                        player.updateInventory();
+                        player.sendMessage("§a§l[雷达系统] 战术雷达卫星重连，数据已重新初始化！");
+                    }
+                }, 15L);
             } else {
                 plugin.getPlayerManager().setSpectator(player);
                 event.setJoinMessage(null);
                 player.sendMessage("§c游戏已经开始，你现在处于旁观者模式。");
-
-                // 立即传送并多次延时传送，确保旁观者成功传送至观战位置
                 teleportSpectatorToTarget(player);
             }
         }
@@ -148,22 +169,26 @@ public class GameListener implements Listener {
         }
         return targetSpectate;
     }
-
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         plugin.getPlayerManager().removePlayer(player);
-        plugin.resetPlayerMap(player.getUniqueId());
+        plugin.getScoreboardManager().removePlayer(player);
+        plugin.getPacketMapManager().removeMap(player);
         event.setQuitMessage("§e" + player.getName() + " §c退出了游戏");
-
         if (plugin.getCurrentState() == GameState.INGAME || plugin.getCurrentState() == GameState.FLIGHT) {
             checkWinCondition();
         }
     }
-
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         final Player player = event.getEntity();
+
+        // 注册击杀
+        Player killer = player.getKiller();
+        if (killer != null) {
+            plugin.getPlayerManager().addKill(killer);
+        }
 
         // 防止死亡时掉落雷达地图
         event.getDrops().removeIf(item -> item != null && item.getType() == Material.MAP);
@@ -190,7 +215,7 @@ public class GameListener implements Listener {
                             player.spigot().respawn();
                         } catch (Exception e) {
                             player.setHealth(player.getMaxHealth());
-                            player.setFoodLevel(20);
+                            player.setFoodLevel(19);
                             player.teleport(deathLoc);
                         }
                     }
@@ -202,8 +227,7 @@ public class GameListener implements Listener {
                             || currentState == GameState.ENDING) {
                         player.setGameMode(org.bukkit.GameMode.SPECTATOR);
                         player.getInventory().clear();
-                        // 立即清除该玩家的地图渲染缓存，防止其下一局拿到地图时显示上一把死亡位置的残留画面
-                        plugin.resetPlayerMap(player.getUniqueId());
+                                                plugin.getPacketMapManager().removeMap(player);
                         player.sendMessage("§c你已被淘汰！现在是观察者模式。");
 
                         // 寻找最近的存活玩家并传送过去观战
@@ -265,6 +289,11 @@ public class GameListener implements Listener {
      */
     @EventHandler
     public void onPlayerItemConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
+        Material type = event.getItem().getType();
+        if (type == Material.COOKED_CHICKEN || type == Material.GOLDEN_APPLE || type == Material.APPLE || type == Material.BREAD) {
+            event.setCancelled(true);
+            return;
+        }
         GameState state = plugin.getCurrentState();
         if (state != GameState.INGAME && state != GameState.FLIGHT) {
             event.setCancelled(true);
@@ -384,9 +413,16 @@ public class GameListener implements Listener {
 
     @EventHandler
     public void onFoodLevelChange(FoodLevelChangeEvent event) {
-        GameState state = plugin.getCurrentState();
-        if (state != GameState.INGAME && state != GameState.FLIGHT) {
-            event.setCancelled(true);
+        event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPlayerToggleSneak(org.bukkit.event.player.PlayerToggleSneakEvent event) {
+        Player player = event.getPlayer();
+        if (event.isSneaking()) {
+            if (plugin.getCurrentState() == GameState.FLIGHT && plugin.getFlightManager().isOnPlane(player)) {
+                plugin.getFlightManager().forceJump(player);
+            }
         }
     }
 
@@ -401,20 +437,6 @@ public class GameListener implements Listener {
             return;
         }
         org.bukkit.inventory.ItemStack item = player.getItemInHand();
-
-        // 跳伞用的羽毛
-        if (item != null && item.getType() == Material.FEATHER) {
-            if (item.hasItemMeta()) {
-                org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
-                if (meta.hasDisplayName() && meta.getDisplayName().contains("跳伞")) {
-                    if (plugin.getCurrentState() == GameState.FLIGHT) {
-                        plugin.getFlightManager().forceJump(player);
-                    }
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-        }
 
         // 打药逻辑（绷带/急救包/医疗箱）
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
@@ -447,7 +469,7 @@ public class GameListener implements Listener {
                     }
                     event.setCancelled(true);
                     return;
-                } else if (name.contains("急救包")) {
+                } else if (name.contains("急救鸡")) {
                     if (player.getHealth() < player.getMaxHealth()) {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealing(player, true);
@@ -554,13 +576,14 @@ public class GameListener implements Listener {
     @EventHandler
     public void onPlayerRespawn(org.bukkit.event.player.PlayerRespawnEvent event) {
         final Player player = event.getPlayer();
+        player.setFoodLevel(19);
         GameState state = plugin.getCurrentState();
 
         // 如果是游戏中死亡复活的旁观者玩家，确保其没有残留地图且为 SPECTATOR
         if (state == GameState.INGAME || state == GameState.FLIGHT || state == GameState.ENDING) {
             if (plugin.getPlayerManager().isSpectator(player)) {
                 player.getInventory().clear();
-                plugin.resetPlayerMap(player.getUniqueId());
+                plugin.getPacketMapManager().removeMap(player);
 
                 // 延迟 1 tick 强制设置模式，防止 Spigot 内置复活包重置 GameMode
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -577,7 +600,7 @@ public class GameListener implements Listener {
                 if (player.isOnline() && plugin.getCurrentState() == GameState.LOBBY) {
                     player.setGameMode(org.bukkit.GameMode.SURVIVAL);
                     player.getInventory().clear();
-                    player.getInventory().setItem(0, plugin.createRadarMap(player));
+                    plugin.getPacketMapManager().giveMap(player);
                     player.getInventory().setHeldItemSlot(0);
                     player.updateInventory();
                 }

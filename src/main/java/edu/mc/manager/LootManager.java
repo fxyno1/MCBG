@@ -22,12 +22,12 @@ public class LootManager {
 
     private final Material[] COMMON_LOOT = {
             Material.WOOD_SWORD, Material.STONE_SWORD, Material.LEATHER_CHESTPLATE,
-            Material.LEATHER_LEGGINGS, Material.APPLE, Material.BREAD,
+            Material.LEATHER_LEGGINGS,
             Material.BOW, Material.ARROW, Material.SNOW_BALL
     };
 
     private final Material[] RARE_LOOT = {
-            Material.IRON_SWORD, Material.IRON_CHESTPLATE, Material.GOLDEN_APPLE,
+            Material.IRON_SWORD, Material.IRON_CHESTPLATE,
             Material.DIAMOND_SWORD, Material.ENDER_PEARL
     };
 
@@ -73,8 +73,6 @@ public class LootManager {
                     type = COMMON_LOOT[random.nextInt(COMMON_LOOT.length)];
                     if (type == Material.ARROW || type == Material.SNOW_BALL) {
                         amount = 5 + random.nextInt(11);
-                    } else if (type == Material.APPLE || type == Material.BREAD) {
-                        amount = 2 + random.nextInt(4);
                     }
                     inventory.setItem(slot, new ItemStack(type, amount));
                 }

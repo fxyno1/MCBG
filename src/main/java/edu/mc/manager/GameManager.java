@@ -12,6 +12,15 @@ public class GameManager {
     private final ChickenDinnerPlugin plugin;
 
     private int countdownTime;
+    private int gameTimeSeconds = 0;
+
+    public int getGameTimeSeconds() {
+        return gameTimeSeconds;
+    }
+
+    public int getCountdownTime() {
+        return countdownTime;
+    }
     private int damageTickCounter = 0;
     private BukkitRunnable gameTimer;
     private boolean isPaused = false;
@@ -32,7 +41,12 @@ public class GameManager {
                 if (isPaused)
                     return;
 
-                switch (plugin.getCurrentState()) {
+                GameState state = plugin.getCurrentState();
+                if (state == GameState.FLIGHT || state == GameState.INGAME) {
+                    gameTimeSeconds++;
+                }
+
+                switch (state) {
                     case LOBBY:
                         handleLobbyTick();
                         break;
@@ -57,15 +71,13 @@ public class GameManager {
     private void handleLobbyTick() {
         int currentPlayers = plugin.getPlayerManager().getAliveCount();
 
-        if (currentPlayers < 30) {
-            this.countdownTime = 10; // 满30人后开始10秒倒计时
-            // 给玩家在 Action Bar 显示提示，避免屏幕中间一直显示干扰
+        if (currentPlayers < minPlayers) {
+            this.countdownTime = GameConfig.LOBBY_COUNTDOWN;
             Bukkit.getOnlinePlayers().forEach(p -> {
-                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a30");
+                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a" + minPlayers);
             });
             return;
         }
-
         countdownTime--;
 
         if (countdownTime > 0) {
@@ -84,7 +96,7 @@ public class GameManager {
                 if (p.getGameMode() != org.bukkit.GameMode.SPECTATOR
                         && (p.getInventory().getItem(0) == null
                                 || p.getInventory().getItem(0).getType() != org.bukkit.Material.MAP)) {
-                    p.getInventory().setItem(0, plugin.createRadarMap(p));
+                    plugin.getPacketMapManager().giveMap(p);
                     p.updateInventory();
                 }
             });
@@ -106,7 +118,7 @@ public class GameManager {
             if (p.getGameMode() != org.bukkit.GameMode.SPECTATOR
                     && (p.getInventory().getItem(0) == null
                             || p.getInventory().getItem(0).getType() != org.bukkit.Material.MAP)) {
-                p.getInventory().setItem(0, plugin.createRadarMap(p));
+                plugin.getPacketMapManager().giveMap(p);
                 p.updateInventory();
             }
         });
@@ -240,28 +252,42 @@ public class GameManager {
             this.countdownTime = GameConfig.LOBBY_COUNTDOWN;
             this.damageTickCounter = 0;
             this.initialPlayerCount = 0;
+            this.gameTimeSeconds = 0;
 
             // 立即重置全局地图缓存，彻底擦除上一局的红线等所有信息
-            plugin.resetGlobalMapCache();
+            plugin.getPacketMapManager().clearAll();
 
             world.getWorldBorder().reset();
 
             org.bukkit.Location lobbyLoc = new org.bukkit.Location(world,
                     GameConfig.LOBBY_X, GameConfig.LOBBY_Y, GameConfig.LOBBY_Z);
+            // ... 在 GameManager.java 的 handleEndingTick() 回归大厅的遍历玩家循环中：
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (p.getGameMode() == org.bukkit.GameMode.CREATIVE) {
                     continue;
                 }
 
                 p.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                plugin.resetPlayerMap(p.getUniqueId());
+                plugin.getPacketMapManager().removeMap(p);
 
                 p.getInventory().clear();
-                p.getInventory().setItem(0, plugin.createRadarMap(p));
+
+                // 第一次塞入地图（动态绑定或新建）
+                plugin.getPacketMapManager().giveMap(p);
                 p.getInventory().setHeldItemSlot(0);
                 p.updateInventory();
+                // 【开局重绘强刷】延迟 5 ticks 再次冲刷新包
+                final Player finalP = p;
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (finalP.isOnline() && plugin.getCurrentState() == GameState.LOBBY) {
+                        plugin.getPacketMapManager().removeMap(finalP);
+                        plugin.getPacketMapManager().giveMap(finalP);
+                        finalP.updateInventory();
+                    }
+                }, 5L);
                 p.getInventory().setArmorContents(null);
-                p.setFoodLevel(20);
+                // ... 下方保持原样 ...
+                p.setFoodLevel(19);
                 p.setMaxHealth(40.0); // 确保重置回大厅时也是 40.0 最大血量
                 p.setHealth(40.0);
                 p.setFireTicks(0);

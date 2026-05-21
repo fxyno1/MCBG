@@ -23,6 +23,11 @@ public class ZoneManager {
     private final double[] phaseDamages = GameConfig.ZONE_DAMAGES;
 
     private org.bukkit.scheduler.BukkitTask shrinkTask;
+    private int remainingShrinkSeconds = 0;
+
+    public int getRemainingShrinkSeconds() {
+        return remainingShrinkSeconds;
+    }
 
     // 下一级安全区（也就是白圈）的目标参数，用于雷达地图渲染和缩圈驱动
     private double targetX = 0.0;
@@ -46,6 +51,7 @@ public class ZoneManager {
         border.setDamageBuffer(0.0);
         border.setWarningDistance(0);
         this.phase = -1;
+        this.remainingShrinkSeconds = 0;
         if (shrinkTask != null) {
             shrinkTask.cancel();
             shrinkTask = null;
@@ -151,29 +157,32 @@ public class ZoneManager {
 
                 @Override
                 public void run() {
+                    remainingShrinkSeconds = Math.max(0, (totalTicks - currentTick) / 20);
                     if (currentTick >= totalTicks) {
                         border.setCenter(finalTargetX, finalTargetZ);
+                        border.setSize(finalTargetSize);
                         this.cancel();
                         shrinkTask = null;
+                        remainingShrinkSeconds = 0;
 
-                        // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段的白圈参数！
+                        // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段 of 白圈参数！
                         generateNextZone();
                         Bukkit.broadcastMessage("§a[安全区] 毒圈收缩完毕。下一波安全区（白色区域）已在GPS雷达中标出！");
                         return;
                     }
-                    currentTick += 4;
+                    currentTick += 20; // 每一秒更新一次
                     double progress = (double) Math.min(currentTick, totalTicks) / totalTicks;
                     double curX = currentX + (finalTargetX - currentX) * progress;
                     double curZ = currentZ + (finalTargetZ - currentZ) * progress;
+                    double curSize = currentSize + (finalTargetSize - currentSize) * progress;
                     border.setCenter(curX, curZ);
+                    border.setSize(curSize);
                 }
-            }.runTaskTimer(plugin, 1L, 4L);
+            }.runTaskTimer(plugin, 1L, 20L); // 每 20 ticks (1秒) 更新一次，杜绝客户端 desync
         } else {
             // 如果不需要缩圈（理论上不可能），则直接生成
             generateNextZone();
         }
-
-        border.setSize(finalTargetSize, timeToShrink);
 
         Bukkit.broadcastMessage("§c[安全区] 第" + (phase + 1) + "级毒圈开始向白圈位置收缩！");
 
@@ -221,5 +230,6 @@ public class ZoneManager {
         this.targetX = 0.0;
         this.targetZ = 16.0;
         this.targetSize = 600.0;
+        this.remainingShrinkSeconds = 0;
     }
 }

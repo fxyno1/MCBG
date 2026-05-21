@@ -2,11 +2,20 @@ package edu.mc.command;
 
 import edu.mc.ChickenDinnerPlugin;
 import edu.mc.state.GameState;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 public class GameCommand implements CommandExecutor {
+
+    private static final String PERMISSION_ADMIN = "mcbg.admin";
+    private static final String PREFIX = "§6--- [吃鸡核心命令帮助] ---";
+    private static final String COLOR_ERROR = "§c";
+    private static final String COLOR_SUCCESS = "§a";
+    private static final String COLOR_INFO = "§e";
 
     private final ChickenDinnerPlugin plugin;
 
@@ -16,64 +25,130 @@ public class GameCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("mcbg.admin")) {
-            sender.sendMessage("§c你没有权限执行此命令！");
+        if (!sender.hasPermission(PERMISSION_ADMIN)) {
+            sender.sendMessage(COLOR_ERROR + "你没有权限执行此命令！");
             return true;
         }
 
         if (args.length == 0) {
-            sender.sendMessage("§6--- [吃鸡核心命令帮助] ---");
-            sender.sendMessage("§e/cd start - 强制开始比赛（无视人数和大厅倒计时）");
-            sender.sendMessage("§e/cd pause - 暂停/恢复游戏倒计时");
-            sender.sendMessage("§e/cd skip - 跳过当前的准备/倒计时阶段");
-            sender.sendMessage("§e/cd stop - 强行终止并重置当前比赛");
-            sender.sendMessage("§e/cd settime <秒> - 设置当前阶段的剩余秒数");
+            sender.sendMessage(PREFIX);
+            sender.sendMessage(COLOR_INFO + "/cd start - 强制开始比赛（无视人数和大厅倒计时）");
+            sender.sendMessage(COLOR_INFO + "/cd pause - 暂停/恢复游戏倒计时");
+            sender.sendMessage(COLOR_INFO + "/cd skip - 跳过当前的准备/倒计时阶段");
+            sender.sendMessage(COLOR_INFO + "/cd stop - 强行终止并重置当前比赛");
+            sender.sendMessage(COLOR_INFO + "/cd settime <秒> - 设置当前阶段的剩余秒数");
+            sender.sendMessage(COLOR_INFO + "/cd resetmap - 强制刷新所有玩家的GPS雷达地图");
             return true;
         }
 
         String sub = args[0].toLowerCase();
         switch (sub) {
             case "start":
-                if (plugin.getCurrentState() != GameState.LOBBY) {
-                    sender.sendMessage("§c游戏已经开始，无法再次强制开始！");
-                    return true;
-                }
-                plugin.getGameManager().forceStart();
-                sender.sendMessage("§a已成功强制开始比赛！");
+                handleStart(sender);
                 break;
             case "pause":
-                boolean paused = plugin.getGameManager().togglePause();
-                if (paused) {
-                    sender.sendMessage("§a游戏倒计时已【暂停】！");
-                } else {
-                    sender.sendMessage("§a游戏倒计时已【恢复】！");
-                }
+                handlePause(sender);
                 break;
             case "skip":
-                plugin.getGameManager().skipPhase();
-                sender.sendMessage("§a已跳过当前阶段！");
+                handleSkip(sender);
                 break;
             case "stop":
-                plugin.getGameManager().endGame();
-                sender.sendMessage("§c已强行终止比赛，正在结算重置...");
+                handleStop(sender);
                 break;
             case "settime":
-                if (args.length < 2) {
-                    sender.sendMessage("§c使用方法：/cd settime <秒数>");
-                    return true;
-                }
-                try {
-                    int seconds = Integer.parseInt(args[1]);
-                    plugin.getGameManager().setCountdownTime(seconds);
-                    sender.sendMessage("§a已成功将当前倒计时设为" + seconds + " 秒！");
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("§c输入的秒数格式不正确！");
-                }
+                handleSetTime(sender, args);
+                break;
+            case "resetmap":
+                handleResetMap(sender);
                 break;
             default:
-                sender.sendMessage("§c未知子命令，请直接输入/cd 查看帮助。");
+                sender.sendMessage(COLOR_ERROR + "未知子命令，请直接输入/cd 查看帮助。");
                 break;
         }
         return true;
+    }
+
+    private void handleStart(CommandSender sender) {
+        if (plugin.getCurrentState() != GameState.LOBBY) {
+            sender.sendMessage(COLOR_ERROR + "游戏已经开始，无法再次强制开始！");
+            return;
+        }
+        
+        if (plugin.getGameManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
+            return;
+        }
+        
+        plugin.getGameManager().forceStart();
+        sender.sendMessage(COLOR_SUCCESS + "已成功强制开始比赛！");
+    }
+
+    private void handlePause(CommandSender sender) {
+        if (plugin.getGameManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
+            return;
+        }
+        
+        boolean paused = plugin.getGameManager().togglePause();
+        sender.sendMessage(paused ? COLOR_SUCCESS + "游戏倒计时已【暂停】！" : COLOR_SUCCESS + "游戏倒计时已【恢复】！");
+    }
+
+    private void handleSkip(CommandSender sender) {
+        if (plugin.getGameManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
+            return;
+        }
+        
+        plugin.getGameManager().skipPhase();
+        sender.sendMessage(COLOR_SUCCESS + "已跳过当前阶段！");
+    }
+
+    private void handleStop(CommandSender sender) {
+        if (plugin.getGameManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
+            return;
+        }
+        
+        plugin.getGameManager().endGame();
+        sender.sendMessage(COLOR_ERROR + "已强行终止比赛，正在结算重置...");
+    }
+
+    private void handleSetTime(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(COLOR_ERROR + "使用方法：/cd settime <秒数>");
+            return;
+        }
+        
+        if (plugin.getGameManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "游戏管理器未初始化！");
+            return;
+        }
+        
+        try {
+            int seconds = Integer.parseInt(args[1]);
+            plugin.getGameManager().setCountdownTime(seconds);
+            sender.sendMessage(COLOR_SUCCESS + "已成功将当前倒计时设为" + seconds + " 秒！");
+        } catch (NumberFormatException e) {
+            sender.sendMessage(COLOR_ERROR + "输入的秒数格式不正确！");
+        }
+    }
+
+    private void handleResetMap(CommandSender sender) {
+        if (plugin.getPacketMapManager() == null) {
+            sender.sendMessage(COLOR_ERROR + "地图管理器未初始化！");
+            return;
+        }
+        
+        plugin.getPacketMapManager().clearAll();
+        
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.getGameMode() == GameMode.CREATIVE) continue;
+            
+            plugin.getPacketMapManager().removeMap(p);
+            plugin.getPacketMapManager().giveMap(p);
+            p.updateInventory();
+        }
+        
+        sender.sendMessage(COLOR_SUCCESS + "§l[系统] 已成功对全服玩家的战术GPS雷达下达了强刷清空指令！");
     }
 }

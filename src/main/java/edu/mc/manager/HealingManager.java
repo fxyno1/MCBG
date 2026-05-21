@@ -44,10 +44,9 @@ public class HealingManager {
     }
 
     public ItemStack createMedkit() {
-        // 在 1.8 中红色染料 (玫瑰红) 是 INK_SACK, data 为 1
-        ItemStack item = new ItemStack(Material.INK_SACK, 1, (short) 1);
+        ItemStack item = new ItemStack(Material.COOKED_CHICKEN);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.RED + "急救包");
+        meta.setDisplayName(ChatColor.RED + "急救鸡");
         item.setItemMeta(meta);
         return item;
     }
@@ -121,7 +120,7 @@ public class HealingManager {
                 if (currentHand != null && currentHand.getType() != Material.AIR) {
                     ItemStack activeItem = currentHand.clone();
                     ItemMeta meta = activeItem.getItemMeta();
-                    meta.setDisplayName(isMed ? "§6[正在使用中...] 急救包" : "§6[正在使用中...] 绷带");
+                    meta.setDisplayName(isMed ? "§6[正在使用中...] 急救鸡" : "§6[正在使用中...] 绷带");
                     meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
                     activeItem.setItemMeta(meta);
                     player.getInventory().setItem(slot, activeItem);
@@ -288,9 +287,9 @@ public class HealingManager {
                         player.updateInventory();
                     }
 
-                    // 医疗箱效果：回满血量，饱食度与饱和度拉满
+                    // 医疗箱效果：回满血量，饱食度设为19
                     player.setHealth(player.getMaxHealth());
-                    player.setFoodLevel(20);
+                    player.setFoodLevel(19);
                     player.setSaturation(20F);
                     plugin.sendActionBar(player, "§a医疗箱使用完成，状态已全部拉满！");
 
