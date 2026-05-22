@@ -81,9 +81,9 @@ public class ScoreboardManager {
 
         if (state == GameState.LOBBY || state == GameState.STARTING) {
             // 模式
-            String modeStr = "§f模式:  §a双人";
+            String modeStr = "§f模式:  §a单人";
             // 玩家: X/MAX
-            String playersStr = "§f玩家:  §a" + plugin.getPlayerManager().getAliveCount() + "/" + Bukkit.getMaxPlayers();
+            String playersStr = "§f玩家:  §a" + plugin.getPlayerManager().getAliveCount() + "/30";
             // 状态
             String statusStr = "§f状态:  §a可加入...";
 

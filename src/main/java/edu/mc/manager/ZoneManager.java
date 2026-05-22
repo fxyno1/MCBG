@@ -172,9 +172,14 @@ public class ZoneManager {
                     double progress = (double) Math.min(currentTick, totalTicks) / totalTicks;
                     double curX = currentX + (finalTargetX - currentX) * progress;
                     double curZ = currentZ + (finalTargetZ - currentZ) * progress;
-                    double curSize = currentSize + (finalTargetSize - currentSize) * progress;
+                    
+                    // 计算下一秒的目标尺寸，以进行平滑过渡收缩
+                    double nextProgress = (double) Math.min(currentTick + 20, totalTicks) / totalTicks;
+                    double nextSize = currentSize + (finalTargetSize - currentSize) * nextProgress;
+
                     border.setCenter(curX, curZ);
-                    border.setSize(curSize);
+                    // 【修改】使用 setSize(size, seconds) 启动 2 秒的过渡收缩。这使边界在客户端保持红色收缩状态，并提供平滑过渡与 1 秒的交互缓冲区，保证缩圈时玩家仍能开箱
+                    border.setSize(nextSize, 2L);
                 }
             }.runTaskTimer(plugin, 1L, 20L); // 每 20 ticks (1秒) 更新一次，杜绝客户端 desync
         } else {

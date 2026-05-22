@@ -71,13 +71,20 @@ public class GameManager {
     private void handleLobbyTick() {
         int currentPlayers = plugin.getPlayerManager().getAliveCount();
 
-        if (currentPlayers < GameConfig.MIN_PLAYERS) {
-            this.countdownTime = GameConfig.LOBBY_COUNTDOWN;
+        if (currentPlayers < 6) {
+            this.countdownTime = 30;
             Bukkit.getOnlinePlayers().forEach(p -> {
-                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a" + GameConfig.MIN_PLAYERS);
+                plugin.sendActionBar(p, "§e等待玩家加入... §a" + currentPlayers + "§f/§a30");
             });
             return;
         }
+
+        // 人数满 30 人时缩短倒计时至 15 秒
+        if (currentPlayers >= 30 && this.countdownTime > 15) {
+            this.countdownTime = 15;
+            Bukkit.broadcastMessage("§a[游戏广播] 人数已达 30 人，倒计时缩短至 15 秒！");
+        }
+
         countdownTime--;
 
         if (countdownTime > 0) {
@@ -94,9 +101,14 @@ public class GameManager {
                 plugin.sendActionBar(p, "§a即将开始: §e" + countdownTime + "秒");
 
                 if (p.getGameMode() != org.bukkit.GameMode.SPECTATOR
-                        && (p.getInventory().getItem(0) == null
-                                || p.getInventory().getItem(0).getType() != org.bukkit.Material.MAP)) {
+                        && (p.getInventory().getItem(4) == null
+                                || p.getInventory().getItem(4).getType() != org.bukkit.Material.MAP)) {
                     plugin.getPacketMapManager().giveMap(p);
+                    org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                    if (mapItem != null && mapItem.getType() == org.bukkit.Material.MAP) {
+                        p.getInventory().setItem(0, null);
+                        p.getInventory().setItem(4, mapItem);
+                    }
                     p.updateInventory();
                 }
             });
@@ -106,6 +118,26 @@ public class GameManager {
             plugin.setCurrentState(GameState.STARTING);
             // 提前生成随机飞行航线，让存活玩家在 STARTING_COUNTDOWN 秒“准备起飞”的匹配阶段就能在雷达地图上看到并开始策划落点！
             plugin.getFlightManager().prepareFlightPath();
+
+            // 随机分配未选队玩家
+            plugin.getTeamManager().autoAssignUnassignedPlayers(plugin.getPlayerManager().getAlivePlayers());
+
+            // 强刷一次所有在线玩家的雷达地图，确保航线在开始匹配时立即被渲染
+            plugin.getPacketMapManager().clearAll();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                    continue;
+                }
+                plugin.getPacketMapManager().removeMap(p);
+                plugin.getPacketMapManager().giveMap(p);
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                if (mapItem != null && mapItem.getType() == org.bukkit.Material.MAP) {
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
+                }
+                p.updateInventory();
+            }
+
             this.countdownTime = GameConfig.STARTING_COUNTDOWN;
         }
     }
@@ -116,9 +148,14 @@ public class GameManager {
         // 匹配航线等待阶段保证所有存活玩家背包里有雷达地图（不强切手持槽）
         Bukkit.getOnlinePlayers().forEach(p -> {
             if (p.getGameMode() != org.bukkit.GameMode.SPECTATOR
-                    && (p.getInventory().getItem(0) == null
-                            || p.getInventory().getItem(0).getType() != org.bukkit.Material.MAP)) {
+                    && (p.getInventory().getItem(4) == null
+                            || p.getInventory().getItem(4).getType() != org.bukkit.Material.MAP)) {
                 plugin.getPacketMapManager().giveMap(p);
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                if (mapItem != null && mapItem.getType() == org.bukkit.Material.MAP) {
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
+                }
                 p.updateInventory();
             }
         });
@@ -167,7 +204,7 @@ public class GameManager {
 
     private void handleInGameTick() {
         int alive = plugin.getPlayerManager().getAliveCount();
-        if (alive <= 0 || (this.initialPlayerCount > 1 && alive <= 1)) {
+        if (alive <= 0 || (this.initialPlayerCount > 1 && plugin.getTeamManager().isOnlyOneTeamLeft(plugin.getPlayerManager().getAlivePlayers()))) {
             endGame();
             return;
         }
@@ -217,11 +254,16 @@ public class GameManager {
         countdownTime--;
 
         if (countdownTime == 9) {
-            Player winner = plugin.getPlayerManager().getWinner();
+            edu.mc.manager.TeamManager.TeamInfo winner = plugin.getTeamManager().getWinningTeam(plugin.getPlayerManager().getAlivePlayers());
             if (winner != null) {
                 Bukkit.broadcastMessage("§a§l大吉大利，今晚吃鸡！");
-                Bukkit.broadcastMessage("§e获胜者是: §6" + winner.getName());
-                plugin.sendTitle(winner, "§6大吉大利", "§e今晚吃鸡", 10, 60, 10);
+                Bukkit.broadcastMessage("§e获胜队伍是: " + winner.chatColor + winner.name);
+                for (java.util.UUID uuid : plugin.getTeamManager().getPlayersInTeam(winner.id)) {
+                    Player p = Bukkit.getPlayer(uuid);
+                    if (p != null && p.isOnline()) {
+                        plugin.sendTitle(p, "§6大吉大利", "§e今晚吃鸡", 10, 60, 10);
+                    }
+                }
             } else {
                 Bukkit.broadcastMessage("§7游戏结束，没有胜者。");
             }
@@ -239,6 +281,7 @@ public class GameManager {
             }
             plugin.getFlightManager().reset();
             plugin.getAirdropManager().reset();
+            plugin.getTeamManager().reset();
 
             // 清理地面上的掉落物（如战利品、丢弃的装备和物品等）
             org.bukkit.World world = Bukkit.getWorlds().get(0);
@@ -254,8 +297,8 @@ public class GameManager {
             this.initialPlayerCount = 0;
             this.gameTimeSeconds = 0;
 
-            // 立即重置全局地图缓存，彻底擦除上一局的红线等所有信息
-            plugin.getPacketMapManager().clearAll();
+            // 【修改】每局游戏结束开始下一把时，彻底清空并删除地图缓存文件，实现重新绘制
+            plugin.getPacketMapManager().clearAndResetMapFiles();
 
             world.getWorldBorder().reset();
 
@@ -274,6 +317,25 @@ public class GameManager {
 
                 // 第一次塞入地图（动态绑定或新建）
                 plugin.getPacketMapManager().giveMap(p);
+                
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                if (mapItem != null && mapItem.getType() == org.bukkit.Material.MAP) {
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
+                }
+                
+                org.bukkit.inventory.ItemStack paper = new org.bukkit.inventory.ItemStack(org.bukkit.Material.PAPER);
+                org.bukkit.inventory.meta.ItemMeta paperMeta = paper.getItemMeta();
+                paperMeta.setDisplayName("§a选队");
+                paper.setItemMeta(paperMeta);
+                p.getInventory().setItem(0, paper);
+
+                org.bukkit.inventory.ItemStack feather = new org.bukkit.inventory.ItemStack(org.bukkit.Material.FEATHER);
+                org.bukkit.inventory.meta.ItemMeta featherMeta = feather.getItemMeta();
+                featherMeta.setDisplayName("§c退出大厅");
+                feather.setItemMeta(featherMeta);
+                p.getInventory().setItem(8, feather);
+
                 p.getInventory().setHeldItemSlot(0);
                 p.updateInventory();
                 // 【开局重绘强刷】延迟 5 ticks 再次冲刷新包
@@ -302,6 +364,22 @@ public class GameManager {
                 p.teleport(lobbyLoc);
                 plugin.getPlayerManager().addPlayer(p);
             }
+
+            // 延迟 30 ticks (约 1.5秒) 等待所有玩家传送并进入大厅后，强力执行一次类似 /cd resetmap 的全局地图重置逻辑
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (plugin.getCurrentState() == GameState.LOBBY) {
+                    plugin.getPacketMapManager().clearAll();
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        if (p.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                            continue;
+                        }
+                        plugin.getPacketMapManager().removeMap(p);
+                        plugin.getPacketMapManager().giveMap(p);
+                        p.updateInventory();
+                    }
+                    Bukkit.broadcastMessage("§a§l[系统] 已自动重置并刷新所有玩家的战术GPS雷达地图！");
+                }
+            }, 30L);
         }
     }
 
@@ -340,6 +418,24 @@ public class GameManager {
         if (plugin.getCurrentState() == GameState.LOBBY) {
             plugin.setCurrentState(GameState.STARTING);
             plugin.getFlightManager().prepareFlightPath();
+            plugin.getTeamManager().autoAssignUnassignedPlayers(plugin.getPlayerManager().getAlivePlayers());
+
+            // 强刷一次所有在线玩家的雷达地图，确保航线在开始匹配时立即被渲染
+            plugin.getPacketMapManager().clearAll();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+                    continue;
+                }
+                plugin.getPacketMapManager().removeMap(p);
+                plugin.getPacketMapManager().giveMap(p);
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                if (mapItem != null && mapItem.getType() == org.bukkit.Material.MAP) {
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
+                }
+                p.updateInventory();
+            }
+
             this.countdownTime = GameConfig.STARTING_COUNTDOWN;
             Bukkit.broadcastMessage("§a[系统] 管理员强制开启了比赛！正在生成航线...");
         }

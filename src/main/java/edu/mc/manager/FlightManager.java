@@ -78,8 +78,26 @@ public class FlightManager {
 
                 p.getInventory().clear();
                 plugin.getPacketMapManager().giveMap(p);
-                p.getInventory().setItem(4, parachuteItem);
-                p.getInventory().setHeldItemSlot(0); // 默认手持第一格，直接展示雷达地图！
+                // 重置雷达地图到第5格(slot 4)
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
+                if (mapItem != null && mapItem.getType() == Material.MAP) {
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
+                }
+                
+                // 将跳伞羽毛放到最后一格
+                p.getInventory().setItem(8, parachuteItem);
+                p.getInventory().setHeldItemSlot(4); // 默认手持中间的雷达地图
+                
+                // 确保防具（彩色皮革）仍然穿着
+                Integer teamId = plugin.getTeamManager().getTeam(uuid);
+                if (teamId != null) {
+                    edu.mc.manager.TeamManager.TeamInfo info = plugin.getTeamManager().getTeamInfo(teamId);
+                    if (info != null) {
+                        plugin.getTeamManager().equipTeamArmor(p, info);
+                    }
+                }
+                
                 p.updateInventory();
             }
         }
@@ -125,8 +143,12 @@ public class FlightManager {
                         p.setAllowFlight(false);
                         p.setWalkSpeed(0.2f);
                         p.setFlySpeed(0.1f);
-                        p.getInventory().setItem(4, null);
-                        p.getInventory().setHeldItemSlot(0);
+                        p.getInventory().setItem(8, null); // 移除跳伞羽毛
+                        p.getInventory().setHeldItemSlot(4);
+                        
+                        // 跳伞时隐藏彩色衣服
+                        p.getInventory().setArmorContents(null);
+                        
                         p.updateInventory();
                         p.setFallDistance(0f);
                         p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");
@@ -208,8 +230,12 @@ public class FlightManager {
             p.setAllowFlight(false);
             p.setWalkSpeed(0.2f);
             p.setFlySpeed(0.1f);
-            p.getInventory().setItem(4, null); // 仅移除第 5 格的跳伞羽毛，保留 Slot 0 中的雷达地图！
-            p.getInventory().setHeldItemSlot(0); // 重新切换到 Slot 0，向玩家展示 GPS 地图
+            p.getInventory().setItem(8, null); // 仅移除最后一格的跳伞羽毛
+            p.getInventory().setHeldItemSlot(4); // 重新切换到中间槽，向玩家展示 GPS 地图
+            
+            // 跳伞时隐藏彩色衣服
+            p.getInventory().setArmorContents(null);
+            
             p.updateInventory();
             p.setFallDistance(0f);
             p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");

@@ -29,7 +29,7 @@ public class AirdropManager {
     public void reset() {
         clearAllTrappedChests();
         activeAirdrops.clear();
-        
+
         // 删除持久化记录文件
         try {
             java.io.File file = new java.io.File(plugin.getDataFolder(), "airdrops.txt");
@@ -75,7 +75,8 @@ public class AirdropManager {
             }
             java.io.FileWriter writer = new java.io.FileWriter(file);
             for (Location loc : activeAirdrops) {
-                writer.write(loc.getWorld().getName() + "," + loc.getBlockX() + "," + loc.getBlockY() + "," + loc.getBlockZ() + "\n");
+                writer.write(loc.getWorld().getName() + "," + loc.getBlockX() + "," + loc.getBlockY() + ","
+                        + loc.getBlockZ() + "\n");
             }
             writer.close();
         } catch (Exception e) {
@@ -114,18 +115,18 @@ public class AirdropManager {
 
     public void spawnAirdrop(double cx, double cz, double size) {
         World world = Bukkit.getWorlds().get(0);
-        
+
         // 在目标安全区内随机生成空投坐标 (限制在半径的 80% 以内防止压边)
         double offset = (size / 2) * 0.8;
         double dropX = cx + (random.nextDouble() * 2 - 1) * offset;
         double dropZ = cz + (random.nextDouble() * 2 - 1) * offset;
-        
+
         int dropY = world.getHighestBlockYAt((int) dropX, (int) dropZ);
-        
+
         Location dropLoc = new Location(world, dropX, dropY + 1, dropZ);
         Block block = dropLoc.getBlock();
         block.setType(Material.TRAPPED_CHEST);
-        
+
         if (block.getState() instanceof Chest) {
             Chest chest = (Chest) block.getState();
             // 必刷：钻石胸甲 + 钻石靴
@@ -155,22 +156,23 @@ public class AirdropManager {
             chest.getInventory().addItem(plugin.getHealingManager().createBandage());
             chest.update(true);
         }
-        
+
         // 视觉效果与记录
         activeAirdrops.add(dropLoc);
         saveAirdrops();
 
         // 广播空投消息
-        Bukkit.broadcastMessage("§e[空投] §a一架飞机已投下空投补给箱！坐标: X:" + (int)dropX + " Z:" + (int)dropZ);
-        
+        Bukkit.broadcastMessage("§e[空投] §a一架飞机已投下空投补给箱！坐标: X:" + (int) dropX + " Z:" + (int) dropZ);
+
         // 给全部在线玩家的屏幕上直接投射空投坐标大标题
         for (org.bukkit.entity.Player p : Bukkit.getOnlinePlayers()) {
-            plugin.sendTitle(p, "§e★ 空投补给降临 ★", "§a坐标: X:" + (int)dropX + " Z:" + (int)dropZ, 10, 80, 10);
+            plugin.sendTitle(p, "§e★ 空投补给降临 ★", "§a坐标: X:" + (int) dropX + " Z:" + (int) dropZ, 10, 80, 10);
         }
-        
+
         // 连续10秒发射烟花（每秒发射一颗，爆炸后再发一颗）
         new org.bukkit.scheduler.BukkitRunnable() {
             int ticks = 0;
+
             @Override
             public void run() {
                 if (ticks >= 10) {
@@ -179,7 +181,8 @@ public class AirdropManager {
                 }
                 // 烟花从箱子上空一点发出，获得更好观赏效果
                 Location fireworkLoc = dropLoc.clone().add(0.5, 1.0, 0.5);
-                org.bukkit.entity.Firework fw = (org.bukkit.entity.Firework) world.spawnEntity(fireworkLoc, org.bukkit.entity.EntityType.FIREWORK);
+                org.bukkit.entity.Firework fw = (org.bukkit.entity.Firework) world.spawnEntity(fireworkLoc,
+                        org.bukkit.entity.EntityType.FIREWORK);
                 org.bukkit.inventory.meta.FireworkMeta fwm = fw.getFireworkMeta();
                 org.bukkit.FireworkEffect effect = org.bukkit.FireworkEffect.builder()
                         .flicker(true)

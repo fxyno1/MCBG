@@ -21,6 +21,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private edu.mc.manager.FlightManager flightManager;
     private edu.mc.manager.ScoreboardManager scoreboardManager;
     private PacketMapManager packetMapManager;
+    private edu.mc.manager.TeamManager teamManager;
 
     private static String NMS_PACKAGE = null;
 
@@ -102,10 +103,14 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         this.scoreboardManager = new edu.mc.manager.ScoreboardManager(this);
         this.scoreboardManager.start();
         this.packetMapManager = new PacketMapManager(this);
+        // 【修改】服务器启动加载时，立即清理并重置残留的地图数据文件，实现重启重新绘制
+        this.packetMapManager.clearAndResetMapFiles();
 
         this.gameManager = new GameManager(this);
+        this.teamManager = new edu.mc.manager.TeamManager();
 
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new edu.mc.listener.TeamListener(this), this);
         getCommand("chickendinner").setExecutor(new edu.mc.command.GameCommand(this)); // 注册游戏核心命令
         getCommand("hub").setExecutor(new edu.mc.command.HubCommand(this));
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
@@ -159,6 +164,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         return scoreboardManager;
     }
 
+    public edu.mc.manager.TeamManager getTeamManager() {
+        return teamManager;
+    }
+
     public PacketMapManager getPacketMapManager() {
         return packetMapManager;
     }
@@ -205,9 +214,11 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         try {
             String nmsPackage = getNmsPackage();
             packetTitleCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle");
-            chatSerializerCls = Class.forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent");
+            // 【修复】1.8.8 中 ChatSerializer 是 IChatBaseComponent 的内部类，使用 $ 进行查找以避免 ClassNotFoundException
+            chatSerializerCls = Class.forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent$ChatSerializer");
             iChatBaseComponentCls = Class.forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent");
-            enumTitleActionCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle");
+            // 【修复】1.8.8 中 EnumTitleAction 是 PacketPlayOutTitle 的内部类，使用 $ 进行查找以避免 NoSuchFieldException
+            enumTitleActionCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle$EnumTitleAction");
             packetCls = Class.forName("net.minecraft.server." + nmsPackage + ".Packet");
 
             timeConstructor = packetTitleCls.getConstructor(int.class, int.class, int.class);

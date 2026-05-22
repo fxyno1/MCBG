@@ -59,11 +59,30 @@ public class GameListener implements Listener {
             
             // 第一次生成新图分发
             plugin.getPacketMapManager().giveMap(player);
+            
+            org.bukkit.inventory.ItemStack mapItem = player.getInventory().getItem(0);
+            if (mapItem != null && mapItem.getType() == Material.MAP) {
+                player.getInventory().setItem(0, null);
+                player.getInventory().setItem(4, mapItem);
+            }
+            
+            org.bukkit.inventory.ItemStack paper = new org.bukkit.inventory.ItemStack(Material.PAPER);
+            org.bukkit.inventory.meta.ItemMeta paperMeta = paper.getItemMeta();
+            paperMeta.setDisplayName("§a选队");
+            paper.setItemMeta(paperMeta);
+            player.getInventory().setItem(0, paper);
+
+            org.bukkit.inventory.ItemStack feather = new org.bukkit.inventory.ItemStack(Material.FEATHER);
+            org.bukkit.inventory.meta.ItemMeta featherMeta = feather.getItemMeta();
+            featherMeta.setDisplayName("§c退出大厅");
+            feather.setItemMeta(featherMeta);
+            player.getInventory().setItem(8, feather);
+
             player.getInventory().setHeldItemSlot(0);
             player.updateInventory();
 
             plugin.getPlayerManager().addPlayer(player);
-            event.setJoinMessage("§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " 人)");
+            event.setJoinMessage("§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " /30)");
 
             // 1. 立即执行传送
             player.teleport(lobbyLoc);
@@ -97,6 +116,11 @@ public class GameListener implements Listener {
                 if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
                     plugin.getPacketMapManager().removeMap(player);
                     plugin.getPacketMapManager().giveMap(player);
+                    org.bukkit.inventory.ItemStack delayedMapItem = player.getInventory().getItem(0);
+                    if (delayedMapItem != null && delayedMapItem.getType() == Material.MAP) {
+                        player.getInventory().setItem(0, null);
+                        player.getInventory().setItem(4, delayedMapItem);
+                    }
                     player.updateInventory();
                 }
             }, 25L);
@@ -268,6 +292,29 @@ public class GameListener implements Listener {
     }
 
     @EventHandler
+    public void onEntityDamageByEntity(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Player) {
+            Player victim = (Player) event.getEntity();
+            Player attacker = null;
+
+            if (event.getDamager() instanceof Player) {
+                attacker = (Player) event.getDamager();
+            } else if (event.getDamager() instanceof org.bukkit.entity.Projectile) {
+                org.bukkit.entity.Projectile proj = (org.bukkit.entity.Projectile) event.getDamager();
+                if (proj.getShooter() instanceof Player) {
+                    attacker = (Player) proj.getShooter();
+                }
+            }
+
+            if (attacker != null) {
+                if (plugin.getTeamManager().isSameTeam(victim.getUniqueId(), attacker.getUniqueId())) {
+                    event.setCancelled(true);
+                }
+            }
+        }
+    }
+
+    @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.getPlayer().isOp() && event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE) {
             return;
@@ -290,13 +337,16 @@ public class GameListener implements Listener {
     @EventHandler
     public void onPlayerItemConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
         Material type = event.getItem().getType();
+        // 【修复】拦截直接吞食急救鸡等指定物品，并使用 updateInventory 同步背包以防物品数量本地视觉减少
         if (type == Material.COOKED_CHICKEN || type == Material.GOLDEN_APPLE || type == Material.APPLE || type == Material.BREAD) {
             event.setCancelled(true);
+            event.getPlayer().updateInventory();
             return;
         }
         GameState state = plugin.getCurrentState();
         if (state != GameState.INGAME && state != GameState.FLIGHT) {
             event.setCancelled(true);
+            event.getPlayer().updateInventory();
         }
     }
 
@@ -453,9 +503,9 @@ public class GameListener implements Listener {
                     if (elapsed > 500 && timeSinceLastInteract > 400) { // 必须间隔至少 500 毫秒且不能是连续按住右键才允许取消
                         plugin.getHealingManager().cancelHealing(player);
                     }
-                    if (item.getType() == Material.CHEST) {
-                        event.setCancelled(true);
-                    }
+                    // 【修复】玩家正在打药时，拦截一切交互以阻止右键食物开始吃东西的动画，并刷新背包
+                    event.setCancelled(true);
+                    player.updateInventory();
                     return;
                 }
 
@@ -467,7 +517,9 @@ public class GameListener implements Listener {
                     } else {
                         plugin.sendActionBar(player, "§c你的生命值已满！");
                     }
+                    // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放吃东西的动画
                     event.setCancelled(true);
+                    player.updateInventory();
                     return;
                 } else if (name.contains("急救鸡")) {
                     if (player.getHealth() < player.getMaxHealth()) {
@@ -476,7 +528,9 @@ public class GameListener implements Listener {
                     } else {
                         plugin.sendActionBar(player, "§c你的生命值已满！");
                     }
+                    // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放吃东西的动画
                     event.setCancelled(true);
+                    player.updateInventory();
                     return;
                 } else if (name.contains("医疗箱")) {
                     if (player.getHealth() < player.getMaxHealth() || player.getFoodLevel() < 20) {
@@ -485,7 +539,9 @@ public class GameListener implements Listener {
                     } else {
                         plugin.sendActionBar(player, "§c你的生命值和饥饿值均已满！");
                     }
+                    // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放摆放方块的动画
                     event.setCancelled(true);
+                    player.updateInventory();
                     return;
                 }
             }
@@ -633,7 +689,7 @@ public class GameListener implements Listener {
     private void checkWinCondition() {
         int alive = plugin.getPlayerManager().getAliveCount();
         int initial = plugin.getGameManager().getInitialPlayerCount();
-        if (alive <= 0 || (initial > 1 && alive <= 1)) {
+        if (alive <= 0 || (initial > 1 && plugin.getTeamManager().isOnlyOneTeamLeft(plugin.getPlayerManager().getAlivePlayers()))) {
             plugin.getGameManager().endGame();
         }
     }
