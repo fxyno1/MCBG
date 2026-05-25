@@ -267,8 +267,24 @@ public class PacketMapManager {
                 "§7- §a你的实时坐标与视角朝向"));
         mapItem.setItemMeta(meta);
 
-        player.getInventory().setItem(0, mapItem);
-        player.getInventory().setItem(0, mapItem);
+        int existingSlot = -1;
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            org.bukkit.inventory.ItemStack item = player.getInventory().getItem(i);
+            if (item != null && item.getType() == org.bukkit.Material.MAP) {
+                existingSlot = i;
+                break;
+            }
+        }
+
+        if (existingSlot != -1) {
+            player.getInventory().setItem(existingSlot, mapItem);
+        } else {
+            if (player.getInventory().getItem(4) == null) {
+                player.getInventory().setItem(4, mapItem);
+            } else {
+                player.getInventory().addItem(mapItem);
+            }
+        }
         player.updateInventory();
 
         // 【修改】由于我们在发包层面欺骗了客户端（加入了 virtualMapOffset），

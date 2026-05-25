@@ -144,10 +144,13 @@ public class FlightManager {
                         p.setWalkSpeed(0.2f);
                         p.setFlySpeed(0.1f);
                         p.getInventory().setItem(8, null); // 移除跳伞羽毛
+                        p.getInventory().setItem(7, null); // 移除物品栏里的队伍颜色帽子
                         p.getInventory().setHeldItemSlot(4);
                         
-                        // 跳伞时隐藏彩色衣服
-                        p.getInventory().setArmorContents(null);
+                        // 跳伞时隐藏彩色衣服，但保留头上的帽子
+                        p.getInventory().setChestplate(null);
+                        p.getInventory().setLeggings(null);
+                        p.getInventory().setBoots(null);
                         
                         p.updateInventory();
                         p.setFallDistance(0f);
@@ -231,10 +234,13 @@ public class FlightManager {
             p.setWalkSpeed(0.2f);
             p.setFlySpeed(0.1f);
             p.getInventory().setItem(8, null); // 仅移除最后一格的跳伞羽毛
+            p.getInventory().setItem(7, null); // 移除物品栏里的队伍颜色帽子
             p.getInventory().setHeldItemSlot(4); // 重新切换到中间槽，向玩家展示 GPS 地图
             
-            // 跳伞时隐藏彩色衣服
-            p.getInventory().setArmorContents(null);
+            // 跳伞时隐藏彩色衣服，但保留头上的帽子
+            p.getInventory().setChestplate(null);
+            p.getInventory().setLeggings(null);
+            p.getInventory().setBoots(null);
             
             p.updateInventory();
             p.setFallDistance(0f);
