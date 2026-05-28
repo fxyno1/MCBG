@@ -129,25 +129,28 @@ public class AirdropManager {
 
         if (block.getState() instanceof Chest) {
             Chest chest = (Chest) block.getState();
-            // 必刷：钻石胸甲 + 钻石靴
-            chest.getInventory().addItem(new ItemStack(Material.DIAMOND_CHESTPLATE));
-            chest.getInventory().addItem(new ItemStack(Material.DIAMOND_BOOTS));
+            // 必刷
+            for (Material mat : plugin.getDataManager().airdropGuaranteed) {
+                chest.getInventory().addItem(new ItemStack(mat));
+            }
 
-            // 选择性必刷（50%概率 满力量弓，50%概率 满锋利钻剑，保证必刷其一）
-            if (random.nextBoolean()) {
-                ItemStack bow = new ItemStack(Material.BOW);
-                bow.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.ARROW_DAMAGE, 5);
-                bow.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.ARROW_INFINITE, 1);
+            // 选择性必刷（弓 或 剑）
+            if (random.nextInt(100) < plugin.getDataManager().airdropChanceBow) {
+                ItemStack bow = new ItemStack(plugin.getDataManager().airdropBowMaterial);
+                bow.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.ARROW_DAMAGE, plugin.getDataManager().airdropBowEnchantDamage);
+                if (plugin.getDataManager().airdropBowEnchantInfinite > 0) {
+                    bow.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.ARROW_INFINITE, plugin.getDataManager().airdropBowEnchantInfinite);
+                }
                 chest.getInventory().addItem(bow);
                 chest.getInventory().addItem(new ItemStack(Material.ARROW, 1));
             } else {
-                ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
-                sword.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DAMAGE_ALL, 5);
+                ItemStack sword = new ItemStack(plugin.getDataManager().airdropSwordMaterial);
+                sword.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DAMAGE_ALL, plugin.getDataManager().airdropSwordEnchantDamage);
                 chest.getInventory().addItem(sword);
             }
 
-            // 选择性刷：医疗箱（50%概率）
-            if (random.nextBoolean()) {
+            // 选择性刷：医疗箱
+            if (random.nextInt(100) < plugin.getDataManager().airdropChanceMedicalBox) {
                 chest.getInventory().addItem(plugin.getHealingManager().createMedicalBox());
             }
 

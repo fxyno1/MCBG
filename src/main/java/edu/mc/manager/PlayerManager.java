@@ -49,6 +49,7 @@ public class PlayerManager {
 
         player.setGameMode(GameMode.SPECTATOR);
         player.getInventory().clear();
+        player.getInventory().setArmorContents(null);
         player.sendMessage("§c你已被淘汰！现在是旁观者模式。");
     }
 

@@ -36,31 +36,26 @@ public class HealingManager {
     }
 
     public ItemStack createBandage() {
-        ItemStack item = new ItemStack(Material.PAPER);
+        ItemStack item = new ItemStack(plugin.getDataManager().bandageMaterial);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GREEN + "绷带");
+        meta.setDisplayName(plugin.getDataManager().bandageName);
         item.setItemMeta(meta);
         return item;
     }
 
     public ItemStack createMedkit() {
-        ItemStack item = new ItemStack(Material.COOKED_CHICKEN);
+        ItemStack item = new ItemStack(plugin.getDataManager().medkitMaterial);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.RED + "急救鸡");
+        meta.setDisplayName(plugin.getDataManager().medkitName);
         item.setItemMeta(meta);
         return item;
     }
 
     public ItemStack createMedicalBox() {
-        ItemStack item = new ItemStack(Material.CHEST);
+        ItemStack item = new ItemStack(plugin.getDataManager().medicalBoxMaterial);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "医疗箱");
-        meta.setLore(java.util.Arrays.asList(
-            "§7使用时间：3秒",
-            "§7效果：恢复所有生命值",
-            "§7并且将饱食度拉满！",
-            "§e[右键使用]"
-        ));
+        meta.setDisplayName(plugin.getDataManager().medicalBoxName);
+        meta.setLore(plugin.getDataManager().medicalBoxLore);
         item.setItemMeta(meta);
         return item;
     }
@@ -120,7 +115,8 @@ public class HealingManager {
                 if (currentHand != null && currentHand.getType() != Material.AIR) {
                     ItemStack activeItem = currentHand.clone();
                     ItemMeta meta = activeItem.getItemMeta();
-                    meta.setDisplayName(isMed ? "§6[正在使用中...] 急救鸡" : "§6[正在使用中...] 绷带");
+                    String name = ChatColor.stripColor(isMed ? plugin.getDataManager().medkitName : plugin.getDataManager().bandageName);
+                    meta.setDisplayName("§6[正在使用中...] " + name);
                     meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
                     activeItem.setItemMeta(meta);
                     player.getInventory().setItem(slot, activeItem);
@@ -131,8 +127,8 @@ public class HealingManager {
 
         // 绷带3秒(60 ticks)，回复2/9血量
         // 急救包5秒(100 ticks)，回复3/4血量
-        int totalTicks = isMedkit ? 100 : 60;
-        double healAmount = player.getMaxHealth() * (isMedkit ? 0.75 : (2.0 / 9.0));
+        int totalTicks = isMedkit ? plugin.getDataManager().medkitUseTicks : plugin.getDataManager().bandageUseTicks;
+        double healAmount = player.getMaxHealth() * (isMedkit ? plugin.getDataManager().medkitHealRatio : plugin.getDataManager().bandageHealRatio);
 
         healingLocations.put(uuid, player.getLocation().clone());
 
@@ -229,7 +225,8 @@ public class HealingManager {
                 if (currentHand != null && currentHand.getType() != Material.AIR) {
                     ItemStack activeItem = currentHand.clone();
                     ItemMeta meta = activeItem.getItemMeta();
-                    meta.setDisplayName("§6[正在使用中...] 医疗箱");
+                    String name = ChatColor.stripColor(plugin.getDataManager().medicalBoxName);
+                    meta.setDisplayName("§6[正在使用中...] " + name);
                     meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
                     activeItem.setItemMeta(meta);
                     player.getInventory().setItem(slot, activeItem);
@@ -238,8 +235,7 @@ public class HealingManager {
             }
         }, 1L);
 
-        // 医疗箱3秒 (60 ticks)
-        int totalTicks = 60;
+        int totalTicks = plugin.getDataManager().medicalBoxUseTicks;
 
         healingLocations.put(uuid, player.getLocation().clone());
 

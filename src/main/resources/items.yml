@@ -1,0 +1,181 @@
+# MCBG 物品及概率配置文件
+
+loot:
+  chest:
+    min-items: 3
+    max-items: 7
+  entries:
+    bow:
+      material: BOW
+      weight: 100
+      enchants:
+        ARROW_DAMAGE:
+          0: 50
+          1: 30
+          2: 15
+          3: 5
+    iron_sword:
+      material: IRON_SWORD
+      weight: 80
+      enchants:
+        DAMAGE_ALL:
+          0: 50
+          1: 30
+          2: 15
+          3: 5
+    stone_sword:
+      material: STONE_SWORD
+      weight: 100
+      enchants:
+        DAMAGE_ALL:
+          0: 50
+          1: 30
+          2: 15
+          3: 5
+    diamond_sword:
+      material: DIAMOND_SWORD
+      weight: 5
+      enchants:
+        DAMAGE_ALL:
+          2: 100
+    iron_chestplate:
+      material: IRON_CHESTPLATE
+      weight: 60
+      random_protection: true
+      protection_levels:
+        0: 60
+        1: 25
+        2: 10
+        3: 5
+    iron_leggings:
+      material: IRON_LEGGINGS
+      weight: 60
+      random_protection: true
+      protection_levels:
+        0: 60
+        1: 25
+        2: 10
+        3: 5
+    iron_boots:
+      material: IRON_BOOTS
+      weight: 60
+      random_protection: true
+      protection_levels:
+        0: 60
+        1: 25
+        2: 10
+        3: 5
+    tnt:
+      material: TNT
+      weight: 50
+      min-amount: 1
+      max-amount: 3
+    fireball:
+      material: FIREBALL
+      weight: 50
+      min-amount: 1
+      max-amount: 3
+    golden_apple:
+      material: GOLDEN_APPLE
+      weight: 30
+    stone:
+      material: STONE
+      weight: 100
+      min-amount: 16
+      max-amount: 64
+    diamond_chestplate:
+      material: DIAMOND_CHESTPLATE
+      weight: 5
+      random_protection: true
+      protection_levels:
+        0: 95
+        1: 5
+    diamond_leggings:
+      material: DIAMOND_LEGGINGS
+      weight: 5
+      random_protection: true
+      protection_levels:
+        0: 95
+        1: 5
+    diamond_boots:
+      material: DIAMOND_BOOTS
+      weight: 5
+      random_protection: true
+      protection_levels:
+        0: 95
+        1: 5
+    arrow:
+      material: ARROW
+      weight: 150
+      min-amount: 5
+      max-amount: 15
+    snow_ball:
+      material: SNOW_BALL
+      weight: 100
+      min-amount: 5
+      max-amount: 15
+    leather_chestplate:
+      material: LEATHER_CHESTPLATE
+      weight: 150
+    leather_leggings:
+      material: LEATHER_LEGGINGS
+      weight: 150
+    ender_pearl:
+      material: ENDER_PEARL
+      weight: 15
+      min-amount: 1
+      max-amount: 2
+    bandage:
+      material: PAPER
+      weight: 100
+      min-amount: 1
+      max-amount: 3
+    medkit:
+      material: COOKED_CHICKEN
+      weight: 40
+      min-amount: 1
+      max-amount: 2
+    medical_box:
+      material: CHEST
+      weight: 10
+      min-amount: 1
+      max-amount: 1
+
+healing:
+  bandage:
+    material: PAPER
+    name: "&a绷带"
+    use-time-ticks: 60
+    heal-ratio: 0.2222222
+  medkit:
+    material: COOKED_CHICKEN
+    name: "&c急救鸡"
+    use-time-ticks: 100
+    heal-ratio: 0.75
+  medical-box:
+    material: CHEST
+    name: "&d&l医疗箱"
+    use-time-ticks: 60
+    lore:
+      - "&7使用时间：3秒"
+      - "&7效果：恢复所有生命值"
+      - "&7并且将饱食度拉满！"
+      - "&e[右键使用]"
+
+airdrop:
+  chance:
+    medical-box: 50
+    bow: 50
+  guaranteed:
+    - DIAMOND_CHESTPLATE
+    - DIAMOND_BOOTS
+  weapons:
+    bow:
+      material: BOW
+      enchants:
+        ARROW_DAMAGE: 5
+        ARROW_INFINITE: 1
+    sword:
+      material: DIAMOND_SWORD
+      enchants:
+        DAMAGE_ALL: 5

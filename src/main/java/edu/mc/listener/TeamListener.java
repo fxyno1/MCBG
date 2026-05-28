@@ -59,19 +59,33 @@ public class TeamListener implements Listener {
         
         if (state == GameState.LOBBY || state == GameState.STARTING) {
             ItemStack item = event.getItem();
-            if (item != null && item.getType() == Material.PAPER && event.getAction() != Action.PHYSICAL) {
-                ItemMeta meta = item.getItemMeta();
-                if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("选队")) {
-                    openTeamGUI(player);
-                    event.setCancelled(true);
-                }
-            } else if (item != null && item.getType() == Material.FEATHER && event.getAction() != Action.PHYSICAL) {
-                ItemMeta meta = item.getItemMeta();
-                if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("退出大厅")) {
-                    player.performCommand("hub");
-                    event.setCancelled(true);
+            Action action = event.getAction();
+            
+            if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                if (item != null && item.getType() == Material.PAPER) {
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("选队")) {
+                        openTeamGUI(player);
+                        event.setCancelled(true);
+                    }
+                } else if (item != null && item.getType() == Material.FEATHER) {
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("退出大厅")) {
+                        player.performCommand("hub");
+                        event.setCancelled(true);
+                    }
                 }
             }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        Player player = (Player) event.getWhoClicked();
+        GameState state = plugin.getCurrentState();
+        if ((state == GameState.LOBBY || state == GameState.STARTING) && player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+            event.setCancelled(true);
         }
     }
 
@@ -83,10 +97,8 @@ public class TeamListener implements Listener {
         // 防止玩家在大厅乱动背包里的选队物品/衣服
         GameState state = plugin.getCurrentState();
         if (state == GameState.LOBBY || state == GameState.STARTING) {
-            if (event.getClickedInventory() != null && event.getClickedInventory().equals(player.getInventory())) {
-                if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
-                    event.setCancelled(true);
-                }
+            if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                event.setCancelled(true);
             }
         }
 

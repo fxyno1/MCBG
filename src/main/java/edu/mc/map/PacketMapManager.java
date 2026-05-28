@@ -152,29 +152,44 @@ public class PacketMapManager {
         loadTerrain();
     }
 
-    // 动态计算并构建包含玩家当前位置与朝向的单个 MapIcon 数组 (原版三角指针)
+    // 动态计算并构建包含玩家当前位置与朝向及队友位置的 MapIcon 数组 (原版三角指针)
     private Object getPlayerIconArray(Player player) {
         try {
-            int px = worldToPixelX(player.getLocation().getX());
-            int pz = worldToPixelZ(player.getLocation().getZ());
-
-            int cx = (px - 64) * 2;
-            int cz = (pz - 64) * 2;
-
-            byte cursorX = (byte) Math.max(-128, Math.min(127, cx));
-            byte cursorZ = (byte) Math.max(-128, Math.min(127, cz));
-
-            float yaw = player.getLocation().getYaw();
-            int dir = (int) Math.round((yaw) * 16.0 / 360.0);
-            byte cursorDir = (byte) (dir & 15);
-
             Class<?> mapIconClass = com.comphenix.protocol.utility.MinecraftReflection.getMinecraftClass("MapIcon");
             java.lang.reflect.Constructor<?> constr = mapIconClass.getConstructor(byte.class, byte.class, byte.class,
                     byte.class);
-            Object playerIcon = constr.newInstance((byte) 0, cursorX, cursorZ, cursorDir);
 
-            Object array = java.lang.reflect.Array.newInstance(mapIconClass, 1);
-            java.lang.reflect.Array.set(array, 0, playerIcon);
+            List<Object> icons = new ArrayList<>();
+
+            // 添加玩家自己
+            Object selfIcon = createMapIcon(constr, player, (byte) 0);
+            if (selfIcon != null) {
+                icons.add(selfIcon);
+            }
+
+            // 添加队友
+            Integer teamId = plugin.getTeamManager().getTeam(player.getUniqueId());
+            if (teamId != null) {
+                List<UUID> teamPlayers = plugin.getTeamManager().getPlayersInTeam(teamId);
+                for (UUID teammateId : teamPlayers) {
+                    if (!teammateId.equals(player.getUniqueId())) {
+                        Player teammate = Bukkit.getPlayer(teammateId);
+                        if (teammate != null && teammate.isOnline() && teammate.getWorld().equals(player.getWorld())) {
+                            if (plugin.getPlayerManager().isAlive(teammate)) {
+                                Object teammateIcon = createMapIcon(constr, teammate, (byte) 1);
+                                if (teammateIcon != null) {
+                                    icons.add(teammateIcon);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Object array = java.lang.reflect.Array.newInstance(mapIconClass, icons.size());
+            for (int i = 0; i < icons.size(); i++) {
+                java.lang.reflect.Array.set(array, i, icons.get(i));
+            }
             return array;
         } catch (Exception e) {
             try {
@@ -183,6 +198,27 @@ public class PacketMapManager {
             } catch (Exception ex) {
                 return null;
             }
+        }
+    }
+
+    private Object createMapIcon(java.lang.reflect.Constructor<?> constr, Player p, byte type) {
+        try {
+            int px = worldToPixelX(p.getLocation().getX());
+            int pz = worldToPixelZ(p.getLocation().getZ());
+
+            int cx = (px - 64) * 2;
+            int cz = (pz - 64) * 2;
+
+            byte cursorX = (byte) Math.max(-128, Math.min(127, cx));
+            byte cursorZ = (byte) Math.max(-128, Math.min(127, cz));
+
+            float yaw = p.getLocation().getYaw();
+            int dir = (int) Math.round((yaw) * 16.0 / 360.0);
+            byte cursorDir = (byte) (dir & 15);
+
+            return constr.newInstance(type, cursorX, cursorZ, cursorDir);
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -264,7 +300,8 @@ public class PacketMapManager {
                 "§7- §c飞行航线（红色虚线）",
                 "§7- §f下级安全圈范围（白色虚线）",
                 "§7- §9实时毒圈边缘（蓝色实线）",
-                "§7- §a你的实时坐标与视角朝向"));
+                "§7- §a你的实时坐标与视角朝向",
+                "§7- §2队友实时位置（绿色指针）"));
         mapItem.setItemMeta(meta);
 
         int existingSlot = -1;

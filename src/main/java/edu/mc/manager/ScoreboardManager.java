@@ -159,6 +159,24 @@ public class ScoreboardManager {
             newLines.add("  §e✿§e花雨庭§e✿");
         }
 
+        // --- 同步各个玩家头上的队伍颜色 ---
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            Integer teamId = plugin.getTeamManager().getTeam(p.getUniqueId());
+            if (teamId != null) {
+                edu.mc.manager.TeamManager.TeamInfo info = plugin.getTeamManager().getTeamInfo(teamId);
+                String teamName = "team_" + info.id;
+                org.bukkit.scoreboard.Team sbTeam = scoreboard.getTeam(teamName);
+                if (sbTeam == null) {
+                    sbTeam = scoreboard.registerNewTeam(teamName);
+                    sbTeam.setPrefix(info.chatColor);
+                }
+                if (!sbTeam.hasEntry(p.getName())) {
+                    sbTeam.addEntry(p.getName());
+                }
+            }
+        }
+        // ------------------------------------
+
         List<String> oldLines = lastLines.get(uuid);
         if (oldLines == null) {
             oldLines = new ArrayList<>();

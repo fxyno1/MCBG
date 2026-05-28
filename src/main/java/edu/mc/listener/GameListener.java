@@ -56,6 +56,7 @@ public class GameListener implements Listener {
             player.setMaxHealth(40.0);
             player.setHealth(40.0);
             player.getInventory().clear();
+            player.getInventory().setArmorContents(null);
             
             // 第一次生成新图分发
             plugin.getPacketMapManager().giveMap(player);
@@ -199,8 +200,16 @@ public class GameListener implements Listener {
         plugin.getPlayerManager().removePlayer(player);
         plugin.getScoreboardManager().removePlayer(player);
         plugin.getPacketMapManager().removeMap(player);
+
+        GameState state = plugin.getCurrentState();
+        if (state == GameState.LOBBY || state == GameState.STARTING) {
+            plugin.getTeamManager().leaveTeam(player);
+            player.getInventory().clear();
+            player.getInventory().setArmorContents(null);
+        }
+
         event.setQuitMessage("§e" + player.getName() + " §c退出了游戏");
-        if (plugin.getCurrentState() == GameState.INGAME || plugin.getCurrentState() == GameState.FLIGHT) {
+        if (state == GameState.INGAME || state == GameState.FLIGHT) {
             checkWinCondition();
         }
     }
@@ -216,8 +225,49 @@ public class GameListener implements Listener {
 
         // 防止死亡时掉落雷达地图
         event.getDrops().removeIf(item -> item != null && item.getType() == Material.MAP);
+        
+        // 防止死亡时掉落队伍帽子，防止伪装
+        event.getDrops().removeIf(item -> item != null && item.getType() == Material.LEATHER_HELMET);
 
         if (plugin.getCurrentState() == GameState.INGAME || plugin.getCurrentState() == GameState.FLIGHT) {
+            // 生成死亡盒子 (陷阱箱双箱)
+            Block deathBlock = player.getLocation().getBlock();
+            if (deathBlock.getY() > 0 && deathBlock.getY() < 255) {
+                Block eastBlock = deathBlock.getRelative(org.bukkit.block.BlockFace.EAST);
+                
+                deathBlock.setType(Material.TRAPPED_CHEST);
+                eastBlock.setType(Material.TRAPPED_CHEST);
+                plugin.getGameManager().addDeathBlock(deathBlock.getLocation());
+                plugin.getGameManager().addDeathBlock(eastBlock.getLocation());
+                
+                try {
+                    org.bukkit.block.Chest chestState = (org.bukkit.block.Chest) deathBlock.getState();
+                    org.bukkit.inventory.Inventory inv = chestState.getInventory();
+
+                    java.util.List<org.bukkit.inventory.ItemStack> drops = new java.util.ArrayList<>(event.getDrops());
+                    event.getDrops().clear();
+                    for (org.bukkit.inventory.ItemStack drop : drops) {
+                        if (drop != null && drop.getType() != Material.AIR) {
+                            java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> left = inv.addItem(drop);
+                            for (org.bukkit.inventory.ItemStack leftover : left.values()) {
+                                deathBlock.getWorld().dropItemNaturally(deathBlock.getLocation(), leftover);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+
+                // 放置四周的遗物箱告示牌
+                org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST };
+                for (org.bukkit.block.BlockFace face : faces) {
+                    placeSign(deathBlock.getRelative(face), face, player.getName());
+                }
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.EAST), org.bukkit.block.BlockFace.EAST, player.getName());
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.NORTH), org.bukkit.block.BlockFace.NORTH, player.getName());
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.SOUTH), org.bukkit.block.BlockFace.SOUTH, player.getName());
+            }
+
             // 先立即从存活列表移出，保证吃鸡结算的实时性
             plugin.getPlayerManager().getAlivePlayers().remove(player.getUniqueId());
             if (!plugin.getPlayerManager().getSpectators().contains(player.getUniqueId())) {
@@ -251,7 +301,8 @@ public class GameListener implements Listener {
                             || currentState == GameState.ENDING) {
                         player.setGameMode(org.bukkit.GameMode.SPECTATOR);
                         player.getInventory().clear();
-                                                plugin.getPacketMapManager().removeMap(player);
+                        player.getInventory().setArmorContents(null);
+                        plugin.getPacketMapManager().removeMap(player);
                         player.sendMessage("§c你已被淘汰！现在是观察者模式。");
 
                         // 寻找最近的存活玩家并传送过去观战
@@ -319,12 +370,25 @@ public class GameListener implements Listener {
         if (event.getPlayer().isOp() && event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE) {
             return;
         }
+        GameState state = plugin.getCurrentState();
+        if (state == GameState.INGAME || state == GameState.FLIGHT) {
+            if (plugin.getGameManager().isPlayerPlacedBlock(event.getBlock().getLocation())) {
+                plugin.getGameManager().removePlayerPlacedBlock(event.getBlock().getLocation());
+                return; // 允许破坏玩家自己放置的方块
+            }
+        }
         event.setCancelled(true);
     }
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
         if (event.getPlayer().isOp() && event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE) {
+            return;
+        }
+        GameState state = plugin.getCurrentState();
+        if (state == GameState.INGAME || state == GameState.FLIGHT) {
+            // 允许放置任何方块，并记录坐标以便游戏结束时清除
+            plugin.getGameManager().addPlayerPlacedBlock(event.getBlockPlaced().getLocation());
             return;
         }
         event.setCancelled(true);
@@ -338,7 +402,7 @@ public class GameListener implements Listener {
     public void onPlayerItemConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
         Material type = event.getItem().getType();
         // 【修复】拦截直接吞食急救鸡等指定物品，并使用 updateInventory 同步背包以防物品数量本地视觉减少
-        if (type == Material.COOKED_CHICKEN || type == Material.GOLDEN_APPLE || type == Material.APPLE || type == Material.BREAD) {
+        if (type == plugin.getDataManager().medkitMaterial || type == Material.GOLDEN_APPLE || type == Material.APPLE || type == Material.BREAD) {
             event.setCancelled(true);
             event.getPlayer().updateInventory();
             return;
@@ -510,7 +574,12 @@ public class GameListener implements Listener {
                 }
 
                 String name = item.getItemMeta().getDisplayName();
-                if (name.contains("绷带")) {
+                
+                boolean isBandage = item.getType() == plugin.getDataManager().bandageMaterial && plugin.getDataManager().bandageName.equals(name);
+                boolean isMedkit = item.getType() == plugin.getDataManager().medkitMaterial && plugin.getDataManager().medkitName.equals(name);
+                boolean isMedicalBox = item.getType() == plugin.getDataManager().medicalBoxMaterial && plugin.getDataManager().medicalBoxName.equals(name);
+
+                if (isBandage) {
                     if (player.getHealth() < player.getMaxHealth()) {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealing(player, false);
@@ -521,7 +590,7 @@ public class GameListener implements Listener {
                     event.setCancelled(true);
                     player.updateInventory();
                     return;
-                } else if (name.contains("急救鸡")) {
+                } else if (isMedkit) {
                     if (player.getHealth() < player.getMaxHealth()) {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealing(player, true);
@@ -532,7 +601,7 @@ public class GameListener implements Listener {
                     event.setCancelled(true);
                     player.updateInventory();
                     return;
-                } else if (name.contains("医疗箱")) {
+                } else if (isMedicalBox) {
                     if (player.getHealth() < player.getMaxHealth() || player.getFoodLevel() < 20) {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealingMedicalBox(player);
@@ -544,6 +613,37 @@ public class GameListener implements Listener {
                     player.updateInventory();
                     return;
                 }
+            }
+
+            // 投掷 TNT 逻辑
+            if (item != null && item.getType() == Material.TNT) {
+                event.setCancelled(true);
+                if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                    if (item.getAmount() > 1) {
+                        item.setAmount(item.getAmount() - 1);
+                    } else {
+                        player.setItemInHand(null);
+                    }
+                }
+                Location eye = player.getEyeLocation();
+                org.bukkit.entity.TNTPrimed tnt = player.getWorld().spawn(eye, org.bukkit.entity.TNTPrimed.class);
+                tnt.setVelocity(eye.getDirection().multiply(1.2)); // 5格左右的距离，乘数1.2比较合适
+                tnt.setFuseTicks(20); // 1秒爆炸
+                return;
+            }
+            
+            // 投掷 烈焰弹 逻辑
+            if (item != null && item.getType() == Material.FIREBALL) {
+                event.setCancelled(true);
+                if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                    if (item.getAmount() > 1) {
+                        item.setAmount(item.getAmount() - 1);
+                    } else {
+                        player.setItemInHand(null);
+                    }
+                }
+                player.launchProjectile(org.bukkit.entity.Fireball.class);
+                return;
             }
         }
 
@@ -691,6 +791,26 @@ public class GameListener implements Listener {
         int initial = plugin.getGameManager().getInitialPlayerCount();
         if (alive <= 0 || (initial > 1 && plugin.getTeamManager().isOnlyOneTeamLeft(plugin.getPlayerManager().getAlivePlayers()))) {
             plugin.getGameManager().endGame();
+        }
+    }
+
+    private void placeSign(Block block, org.bukkit.block.BlockFace face, String playerName) {
+        if (block.getType() == Material.AIR || block.getType() == Material.WATER || block.getType() == Material.STATIONARY_WATER 
+                || block.getType() == Material.LONG_GRASS || block.getType() == Material.SNOW || block.getType() == Material.DEAD_BUSH
+                || block.getType() == Material.YELLOW_FLOWER || block.getType() == Material.RED_ROSE) {
+            block.setType(Material.WALL_SIGN);
+            plugin.getGameManager().addDeathBlock(block.getLocation());
+            org.bukkit.block.BlockState state = block.getState();
+            if (state instanceof org.bukkit.block.Sign) {
+                org.bukkit.block.Sign sign = (org.bukkit.block.Sign) state;
+                org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
+                signData.setFacingDirection(face);
+                sign.setData(signData);
+                sign.setLine(0, "§c[遗物箱]");
+                sign.setLine(1, playerName);
+                sign.setLine(2, "§8(已阵亡)");
+                sign.update(true, false);
+            }
         }
     }
 }

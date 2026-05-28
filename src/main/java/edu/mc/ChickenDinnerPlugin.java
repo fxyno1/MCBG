@@ -13,6 +13,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private GameState currentState = GameState.LOBBY;
     private GameManager gameManager;
     private edu.mc.manager.PlayerManager playerManager;
+    private edu.mc.manager.DataManager dataManager;
     private edu.mc.manager.LootManager lootManager;
     private edu.mc.manager.HealingManager healingManager;
     private edu.mc.manager.AirdropManager airdropManager;
@@ -95,6 +96,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         mainWorld.setDifficulty(org.bukkit.Difficulty.NORMAL);
 
         this.playerManager = new edu.mc.manager.PlayerManager();
+        this.dataManager = new edu.mc.manager.DataManager(this);
         this.lootManager = new edu.mc.manager.LootManager(this);
         this.healingManager = new edu.mc.manager.HealingManager(this);
         this.airdropManager = new edu.mc.manager.AirdropManager(this);
@@ -134,6 +136,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     // ==================== Managers ====================
     public edu.mc.manager.PlayerManager getPlayerManager() {
         return playerManager;
+    }
+
+    public edu.mc.manager.DataManager getDataManager() {
+        return dataManager;
     }
 
     public edu.mc.manager.LootManager getLootManager() {

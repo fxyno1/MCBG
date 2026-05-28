@@ -25,6 +25,51 @@ public class GameManager {
     private BukkitRunnable gameTimer;
     private boolean isPaused = false;
     private int initialPlayerCount = 0;
+    
+    private final java.util.List<org.bukkit.Location> placedDeathBlocks = new java.util.ArrayList<>();
+    private final java.util.Set<org.bukkit.Location> playerPlacedBlocks = new java.util.HashSet<>();
+
+    public void addPlayerPlacedBlock(org.bukkit.Location loc) {
+        playerPlacedBlocks.add(loc);
+    }
+
+    public void removePlayerPlacedBlock(org.bukkit.Location loc) {
+        playerPlacedBlocks.remove(loc);
+    }
+
+    public boolean isPlayerPlacedBlock(org.bukkit.Location loc) {
+        return playerPlacedBlocks.contains(loc);
+    }
+
+    public void clearPlayerPlacedBlocks() {
+        for (org.bukkit.Location loc : playerPlacedBlocks) {
+            org.bukkit.block.Block b = loc.getBlock();
+            if (b.getType() != org.bukkit.Material.AIR) {
+                b.setType(org.bukkit.Material.AIR);
+            }
+        }
+        playerPlacedBlocks.clear();
+    }
+
+    public void addDeathBlock(org.bukkit.Location loc) {
+        placedDeathBlocks.add(loc);
+    }
+
+    public void clearDeathBlocks() {
+        for (org.bukkit.Location loc : placedDeathBlocks) {
+            org.bukkit.block.Block b = loc.getBlock();
+            if (b.getType() == org.bukkit.Material.TRAPPED_CHEST || b.getType() == org.bukkit.Material.WALL_SIGN) {
+                if (b.getType() == org.bukkit.Material.TRAPPED_CHEST) {
+                    org.bukkit.block.BlockState state = b.getState();
+                    if (state instanceof org.bukkit.block.Chest) {
+                        ((org.bukkit.block.Chest) state).getInventory().clear();
+                    }
+                }
+                b.setType(org.bukkit.Material.AIR);
+            }
+        }
+        placedDeathBlocks.clear();
+    }
 
 
 
@@ -282,6 +327,8 @@ public class GameManager {
             plugin.getFlightManager().reset();
             plugin.getAirdropManager().reset();
             plugin.getTeamManager().reset();
+            this.clearDeathBlocks();
+            this.clearPlayerPlacedBlocks();
 
             // 清理地面上的掉落物（如战利品、丢弃的装备和物品等）
             org.bukkit.World world = Bukkit.getWorlds().get(0);
