@@ -144,6 +144,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         getLogger().info("MCBG (代号：吃鸡) 1.8.9 核心已启动！");
     }
 
+    @Override
     public void onDisable() {
         if (gameManager != null) {
             gameManager.stopTimer();
@@ -151,6 +152,19 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         if (airdropManager != null) {
             airdropManager.reset();
         }
+
+        // 【新增修复】服务器关闭/重载时，彻底释放原版地图上的自定义渲染器，防止留给下一把或者造成内存泄漏
+        for (org.bukkit.map.MapView mapView : playerRadarMaps.values()) {
+            if (mapView != null) {
+                for (org.bukkit.map.MapRenderer renderer : mapView.getRenderers()) {
+                    if (renderer instanceof edu.mc.map.RadarMapRenderer) {
+                        mapView.removeRenderer(renderer);
+                    }
+                }
+            }
+        }
+        playerRadarMaps.clear();
+
         getLogger().info("MCBG 核心已安全卸载。");
     }
 
@@ -297,9 +311,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
      * 在玩家死亡/成为旁观者时调用，防止旧帧死亡位置残留到下一局。
      */
     public void resetPlayerMap(java.util.UUID pid) {
-        org.bukkit.map.MapView mapView = playerRadarMaps.remove(pid);
-        if (mapView == null)
-            return;
+        // 不要在这里 remove 掉 mapView，保留映射，但要驱使它内部清空该玩家的帧缓存
+        org.bukkit.map.MapView mapView = playerRadarMaps.get(pid);
+        if (mapView == null) return;
+
         for (org.bukkit.map.MapRenderer renderer : mapView.getRenderers()) {
             if (renderer instanceof edu.mc.map.RadarMapRenderer) {
                 ((edu.mc.map.RadarMapRenderer) renderer).resetPlayerState(pid);
@@ -312,7 +327,11 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
      * 在每一局游戏结束回归大厅时调用。
      */
     public void resetGlobalMapCache() {
+        // 先清除全局底图缓存的航线残留
+        this.terrainCache = null;
+
         for (org.bukkit.map.MapView mapView : playerRadarMaps.values()) {
+            if (mapView == null) continue;
             for (org.bukkit.map.MapRenderer renderer : mapView.getRenderers()) {
                 if (renderer instanceof edu.mc.map.RadarMapRenderer) {
                     ((edu.mc.map.RadarMapRenderer) renderer).resetGlobalCache();
@@ -411,6 +430,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         }
     }
 
+
+
     private void sendPacket(Player player, Object packet) throws Exception {
         initReflection();
         if (!reflectionInitialized)
@@ -419,4 +440,5 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         Object playerConnection = playerConnectionField.get(handle);
         sendPacketMethod.invoke(playerConnection, packet);
     }
+
 }
