@@ -8,11 +8,14 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerManager {
 
     private final Set<UUID> alivePlayers = new LinkedHashSet<>();
     private final Set<UUID> spectators = new LinkedHashSet<>();
+    private final Map<UUID, Integer> killCount = new ConcurrentHashMap<>();
 
     public void addPlayer(Player player) {
         // 创造模式玩家（管理员/监视者）不参与统计和游玩，直接跳过
@@ -24,10 +27,18 @@ public class PlayerManager {
 
             player.setGameMode(GameMode.SURVIVAL);
             player.setHealth(player.getMaxHealth());
-            player.setFoodLevel(20);
+            player.setFoodLevel(19);
             player.setLevel(0);
             player.setExp(0);
         }
+    }
+
+    public void addKill(Player player) {
+        killCount.put(player.getUniqueId(), killCount.getOrDefault(player.getUniqueId(), 0) + 1);
+    }
+
+    public int getKills(Player player) {
+        return killCount.getOrDefault(player.getUniqueId(), 0);
     }
 
     public void setSpectator(Player player) {
@@ -82,5 +93,6 @@ public class PlayerManager {
     public void reset() {
         alivePlayers.clear();
         spectators.clear();
+        killCount.clear();
     }
 }

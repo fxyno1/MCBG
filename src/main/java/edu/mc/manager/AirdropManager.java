@@ -151,7 +151,6 @@ public class AirdropManager {
             }
 
             // 附带刷一些常规补给
-            chest.getInventory().addItem(new ItemStack(Material.GOLDEN_APPLE, 2));
             chest.getInventory().addItem(plugin.getHealingManager().createMedkit());
             chest.getInventory().addItem(plugin.getHealingManager().createBandage());
             chest.update(true);

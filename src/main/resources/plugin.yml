@@ -1,6 +1,7 @@
 name: MCBG
 version: '${project.version}'
 main: edu.mc.ChickenDinnerPlugin
+depend: [ProtocolLib]
 author: YourName
 description: A Battle Royale mini-game plugin for Minecraft 1.8.9.
 commands:

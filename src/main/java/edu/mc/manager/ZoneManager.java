@@ -15,14 +15,17 @@ public class ZoneManager {
     private final World gameWorld;
     private int phase = -1;
 
-    // 阶段对应的尺寸（直径）—— 已调整为原始值的 3/5，增加游戏挑战性
-    private final double[] phaseSizes = GameConfig.ZONE_SIZES;
-    // 缩圈时间（秒）
-    private final int[] phaseTimes = GameConfig.ZONE_SHRINK_TIMES;
-    // 毒圈伤害（每两秒伤害量，1.0=半颗心）
-    private final double[] phaseDamages = GameConfig.ZONE_DAMAGES;
+    // 阶段对应的尺寸（直径）—— 从 GameConfig 动态获取以支持热重载
+    private double[] getPhaseSizes() { return GameConfig.ZONE_SIZES; }
+    private int[] getPhaseTimes() { return GameConfig.ZONE_SHRINK_TIMES; }
+    private double[] getPhaseDamages() { return GameConfig.ZONE_DAMAGES; }
 
     private org.bukkit.scheduler.BukkitTask shrinkTask;
+    private int remainingShrinkSeconds = 0;
+
+    public int getRemainingShrinkSeconds() {
+        return remainingShrinkSeconds;
+    }
 
     // 下一级安全区（也就是白圈）的目标参数，用于雷达地图渲染和缩圈驱动
     private double targetX = 0.0;
@@ -46,6 +49,7 @@ public class ZoneManager {
         border.setDamageBuffer(0.0);
         border.setWarningDistance(0);
         this.phase = -1;
+        this.remainingShrinkSeconds = 0;
         if (shrinkTask != null) {
             shrinkTask.cancel();
             shrinkTask = null;
@@ -61,15 +65,15 @@ public class ZoneManager {
 
     public void generateNextZone() {
         int nextPhase = phase + 1;
-        if (nextPhase >= phaseSizes.length)
+        if (nextPhase >= getPhaseSizes().length)
             return; // 已经到最后一圈，没有下一波了
 
         // 当前作为基准的圈（如果游戏还没开始，基准是 600 直径）
-        double currentSize = (phase == -1) ? 600.0 : phaseSizes[phase];
+        double currentSize = (phase == -1) ? 600.0 : getPhaseSizes()[phase];
         double currentX = (phase == -1) ? 0.0 : targetX;
         double currentZ = (phase == -1) ? 16.0 : targetZ;
 
-        double nextSize = phaseSizes[nextPhase];
+        double nextSize = getPhaseSizes()[nextPhase];
 
         double currentR = currentSize / 2.0;
         double targetR = nextSize / 2.0;
@@ -89,7 +93,7 @@ public class ZoneManager {
     public void applyZoneDamage() {
         if (phase < 0 || gameWorld == null)
             return;
-        double damage = phaseDamages[phase];
+        double damage = getPhaseDamages()[phase];
         if (damage <= 0)
             return;
 
@@ -122,7 +126,7 @@ public class ZoneManager {
     public void shrinkToNextPhase() {
         if (gameWorld == null)
             return;
-        if (phase >= phaseSizes.length - 1)
+        if (phase >= getPhaseSizes().length - 1)
             return;
 
         if (shrinkTask != null) {
@@ -142,7 +146,7 @@ public class ZoneManager {
 
         phase++; // 进入下一阶段
 
-        int timeToShrink = phaseTimes[phase];
+        int timeToShrink = getPhaseTimes()[phase];
         final int totalTicks = timeToShrink * 20;
 
         if (finalTargetSize < currentSize) {
@@ -151,29 +155,32 @@ public class ZoneManager {
 
                 @Override
                 public void run() {
+                    remainingShrinkSeconds = Math.max(0, (totalTicks - currentTick) / 20);
                     if (currentTick >= totalTicks) {
                         border.setCenter(finalTargetX, finalTargetZ);
+                        border.setSize(finalTargetSize);
                         this.cancel();
                         shrinkTask = null;
+                        remainingShrinkSeconds = 0;
 
-                        // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段的白圈参数！
+                        // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段 of 白圈参数！
                         generateNextZone();
                         Bukkit.broadcastMessage("§a[安全区] 毒圈收缩完毕。下一波安全区（白色区域）已在GPS雷达中标出！");
                         return;
                     }
-                    currentTick += 4;
+                    currentTick += 20; // 每一秒更新一次
                     double progress = (double) Math.min(currentTick, totalTicks) / totalTicks;
                     double curX = currentX + (finalTargetX - currentX) * progress;
                     double curZ = currentZ + (finalTargetZ - currentZ) * progress;
+                    double curSize = currentSize + (finalTargetSize - currentSize) * progress;
                     border.setCenter(curX, curZ);
+                    border.setSize(curSize);
                 }
-            }.runTaskTimer(plugin, 1L, 4L);
+            }.runTaskTimer(plugin, 1L, 20L); // 每 20 ticks (1秒) 更新一次，杜绝客户端 desync
         } else {
             // 如果不需要缩圈（理论上不可能），则直接生成
             generateNextZone();
         }
-
-        border.setSize(finalTargetSize, timeToShrink);
 
         Bukkit.broadcastMessage("§c[安全区] 第" + (phase + 1) + "级毒圈开始向白圈位置收缩！");
 
@@ -209,7 +216,7 @@ public class ZoneManager {
     }
 
     public boolean isMaxPhase() {
-        return phase >= phaseSizes.length - 1;
+        return phase >= getPhaseSizes().length - 1;
     }
 
     public void reset() {
@@ -221,5 +228,6 @@ public class ZoneManager {
         this.targetX = 0.0;
         this.targetZ = 16.0;
         this.targetSize = 600.0;
+        this.remainingShrinkSeconds = 0;
     }
 }
