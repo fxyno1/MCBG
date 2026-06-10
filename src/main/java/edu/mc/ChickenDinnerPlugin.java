@@ -23,6 +23,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private edu.mc.manager.ScoreboardManager scoreboardManager;
     private PacketMapManager packetMapManager;
     private edu.mc.manager.TeamManager teamManager;
+    private edu.mc.manager.WorldManager worldManager;
 
     private static String NMS_PACKAGE = null;
 
@@ -33,51 +34,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         return NMS_PACKAGE;
     }
 
-    @Override
-    public void onLoad() {
-        java.io.File backupDir = new java.io.File("world_backup");
-        java.io.File worldDir = new java.io.File("world");
-        if (backupDir.exists() && backupDir.isDirectory()) {
-            getLogger().info("\u53d1\u73b0 world_backup\uff0c\u6b63\u5728\u91cd\u7f6e\u4e16\u754c\u5730\u56fe...");
-            deleteDirectory(worldDir);
-            try {
-                copyDirectory(backupDir, worldDir);
-                getLogger().info("\u5730\u56fe\u91cd\u7f6e\u6210\u529f\uff01");
-            } catch (Exception e) {
-                getLogger().severe("\u5730\u56fe\u91cd\u7f6e\u5931\u8d25\uff1a" + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void deleteDirectory(java.io.File path) {
-        if (path.exists()) {
-            java.io.File[] files = path.listFiles();
-            if (files != null) {
-                for (java.io.File f : files) {
-                    if (f.isDirectory())
-                        deleteDirectory(f);
-                    f.delete();
-                }
-            }
-        }
-    }
-
-    private void copyDirectory(java.io.File source, java.io.File destination) throws java.io.IOException {
-        if (source.isDirectory()) {
-            if (!destination.exists())
-                destination.mkdirs();
-            String[] files = source.list();
-            if (files != null) {
-                for (String file : files) {
-                    copyDirectory(new java.io.File(source, file), new java.io.File(destination, file));
-                }
-            }
-        } else {
-            java.nio.file.Files.copy(source.toPath(), destination.toPath(),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
+    // Removed old onLoad logic that overwritten default world
 
     @Override
     public void onEnable() {
@@ -108,6 +65,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         // 【修改】服务器启动加载时，立即清理并重置残留的地图数据文件，实现重启重新绘制
         this.packetMapManager.clearAndResetMapFiles();
 
+        this.worldManager = new edu.mc.manager.WorldManager(this);
         this.gameManager = new GameManager(this);
         this.teamManager = new edu.mc.manager.TeamManager();
 
@@ -178,15 +136,24 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         return packetMapManager;
     }
 
+    public edu.mc.manager.WorldManager getWorldManager() {
+        return worldManager;
+    }
+
     public GameManager getGameManager() {
         return gameManager;
     }
 
     public void initZoneManager() {
-        if (this.zoneManager == null) {
-            this.zoneManager = new edu.mc.manager.ZoneManager(this, Bukkit.getWorlds().get(0));
-        }
+        this.zoneManager = new edu.mc.manager.ZoneManager(this, Bukkit.getWorld("game_1"));
         this.zoneManager.initBorder();
+    }
+
+    public void clearZoneManager() {
+        if (this.zoneManager != null) {
+            this.zoneManager.reset();
+            this.zoneManager = null;
+        }
     }
 
     public GameState getCurrentState() {

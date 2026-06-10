@@ -173,6 +173,12 @@ public class ScoreboardManager {
                 if (!sbTeam.hasEntry(p.getName())) {
                     sbTeam.addEntry(p.getName());
                 }
+            } else {
+                // 如果玩家不再有队伍，必须从记分板队伍中移除他们，否则头顶的颜色会一直残留
+                org.bukkit.scoreboard.Team sbTeam = scoreboard.getEntryTeam(p.getName());
+                if (sbTeam != null) {
+                    sbTeam.removeEntry(p.getName());
+                }
             }
         }
         // ------------------------------------

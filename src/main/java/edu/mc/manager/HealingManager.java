@@ -337,4 +337,24 @@ public class HealingManager {
             p.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOW);
         }
     }
+
+    public void handleDeathDrops(Player player, java.util.List<ItemStack> drops) {
+        UUID uuid = player.getUniqueId();
+        if (originalItems.containsKey(uuid)) {
+            ItemStack orig = originalItems.get(uuid);
+            // 将掉落物中正在使用的药还原回原本的状态
+            for (int i = 0; i < drops.size(); i++) {
+                ItemStack drop = drops.get(i);
+                if (drop != null && drop.hasItemMeta() && drop.getItemMeta().hasDisplayName() &&
+                    drop.getItemMeta().getDisplayName().startsWith("§6[正在使用中...]")) {
+                    drops.set(i, orig.clone());
+                    break;
+                }
+            }
+            // 从 originalItems 中移除，防止后续 cancelTask 运行时又凭空发一次药
+            originalItems.remove(uuid);
+            initialSlots.remove(uuid);
+        }
+    }
 }
+

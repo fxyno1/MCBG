@@ -102,7 +102,8 @@ public class PacketMapManager {
             java.io.File imgFile = new java.io.File(plugin.getDataFolder(), "map.png");
             if (!imgFile.exists()) {
                 // 备选世界存档目录下的 map.png
-                org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
+                org.bukkit.World mainWorld = Bukkit.getWorld("game_1");
+                if (mainWorld == null) mainWorld = Bukkit.getWorlds().get(0);
                 imgFile = new java.io.File(mainWorld.getWorldFolder(), "map.png");
             }
 
@@ -354,7 +355,8 @@ public class PacketMapManager {
     public void clearAndResetMapFiles() {
         clearAll();
         try {
-            org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
+            org.bukkit.World mainWorld = Bukkit.getWorld("game_1");
+            if (mainWorld == null) mainWorld = Bukkit.getWorlds().get(0);
             java.io.File dataDir = new java.io.File(mainWorld.getWorldFolder(), "data");
             if (dataDir.exists() && dataDir.isDirectory()) {
                 java.io.File[] files = dataDir.listFiles();

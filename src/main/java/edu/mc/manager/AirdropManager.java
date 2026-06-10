@@ -42,7 +42,8 @@ public class AirdropManager {
     }
 
     public void clearAllTrappedChests() {
-        World world = Bukkit.getWorlds().get(0);
+        World world = Bukkit.getWorld("game_1");
+        if (world == null) return;
         int minChunkX = edu.mc.GameConfig.ISLAND_X1 >> 4;
         int maxChunkX = edu.mc.GameConfig.ISLAND_X2 >> 4;
         int minChunkZ = edu.mc.GameConfig.ISLAND_Z1 >> 4;
@@ -114,14 +115,29 @@ public class AirdropManager {
     }
 
     public void spawnAirdrop(double cx, double cz, double size) {
-        World world = Bukkit.getWorlds().get(0);
+        World world = Bukkit.getWorld("game_1");
+        if (world == null) return;
 
         // 在目标安全区内随机生成空投坐标 (限制在半径的 80% 以内防止压边)
         double offset = (size / 2) * 0.8;
         double dropX = cx + (random.nextDouble() * 2 - 1) * offset;
         double dropZ = cz + (random.nextDouble() * 2 - 1) * offset;
 
-        int dropY = world.getHighestBlockYAt((int) dropX, (int) dropZ);
+        int chunkX = ((int) dropX) >> 4;
+        int chunkZ = ((int) dropZ) >> 4;
+        if (!world.isChunkLoaded(chunkX, chunkZ)) {
+            world.loadChunk(chunkX, chunkZ, true);
+        }
+
+        int dropY = 255;
+        while (dropY > 0) {
+            Material type = world.getBlockAt((int) dropX, dropY, (int) dropZ).getType();
+            // 如果遇到非空气且非树叶方块，就认为找到了真实的落脚点
+            if (type != Material.AIR && type != Material.LEAVES && type != Material.LEAVES_2) {
+                break;
+            }
+            dropY--;
+        }
 
         Location dropLoc = new Location(world, dropX, dropY + 1, dropZ);
         Block block = dropLoc.getBlock();
@@ -131,7 +147,7 @@ public class AirdropManager {
             Chest chest = (Chest) block.getState();
             // 必刷
             for (Material mat : plugin.getDataManager().airdropGuaranteed) {
-                chest.getInventory().addItem(new ItemStack(mat));
+                chest.getBlockInventory().addItem(new ItemStack(mat));
             }
 
             // 选择性必刷（弓 或 剑）
@@ -141,23 +157,42 @@ public class AirdropManager {
                 if (plugin.getDataManager().airdropBowEnchantInfinite > 0) {
                     bow.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.ARROW_INFINITE, plugin.getDataManager().airdropBowEnchantInfinite);
                 }
-                chest.getInventory().addItem(bow);
-                chest.getInventory().addItem(new ItemStack(Material.ARROW, 1));
+                chest.getBlockInventory().addItem(bow);
+                chest.getBlockInventory().addItem(new ItemStack(Material.ARROW, 1));
             } else {
                 ItemStack sword = new ItemStack(plugin.getDataManager().airdropSwordMaterial);
                 sword.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DAMAGE_ALL, plugin.getDataManager().airdropSwordEnchantDamage);
-                chest.getInventory().addItem(sword);
+                chest.getBlockInventory().addItem(sword);
             }
 
             // 选择性刷：医疗箱
             if (random.nextInt(100) < plugin.getDataManager().airdropChanceMedicalBox) {
-                chest.getInventory().addItem(plugin.getHealingManager().createMedicalBox());
+                chest.getBlockInventory().addItem(plugin.getHealingManager().createMedicalBox());
             }
 
             // 附带刷一些常规补给
-            chest.getInventory().addItem(plugin.getHealingManager().createMedkit());
-            chest.getInventory().addItem(plugin.getHealingManager().createBandage());
-            chest.update(true);
+            chest.getBlockInventory().addItem(plugin.getHealingManager().createMedkit());
+            chest.getBlockInventory().addItem(plugin.getHealingManager().createBandage());
+
+            // 随机增加道具如 TNT 和 火焰弹
+            if (random.nextBoolean()) {
+                ItemStack tnt = new ItemStack(Material.TNT, random.nextInt(3) + 1);
+                org.bukkit.inventory.meta.ItemMeta meta = tnt.getItemMeta();
+                if (meta != null) {
+                    meta.setDisplayName("§c手雷");
+                    tnt.setItemMeta(meta);
+                }
+                chest.getBlockInventory().addItem(tnt); // 1-3个
+            }
+            if (random.nextBoolean()) {
+                ItemStack fb = new ItemStack(Material.FIREBALL, random.nextInt(3) + 1);
+                org.bukkit.inventory.meta.ItemMeta meta = fb.getItemMeta();
+                if (meta != null) {
+                    meta.setDisplayName("§6燃烧弹");
+                    fb.setItemMeta(meta);
+                }
+                chest.getBlockInventory().addItem(fb); // 1-3个
+            }
         }
 
         // 视觉效果与记录

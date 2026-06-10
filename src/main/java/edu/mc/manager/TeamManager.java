@@ -131,16 +131,18 @@ public class TeamManager {
         if (teamId != null) {
             teamPlayersMap.get(teamId).remove(player.getUniqueId());
             player.setPlayerListName(player.getName()); // 恢复默认
+            player.setDisplayName(player.getName());
             player.getInventory().setArmorContents(null);
         }
     }
 
     public void updateTabName(Player player, TeamInfo info) {
-        String format = info.chatColor + info.name + " §f✈ §r" + player.getName();
+        String format = info.chatColor + info.name + " §f✈ §r" + info.chatColor + player.getName();
         if (format.length() > 16 && Bukkit.getVersion().contains("1.8")) {
             // 1.8 可能会有长度限制，但 setPlayerListName 限制较宽，通常是记分板有 16 字符限制
         }
         player.setPlayerListName(format);
+        player.setDisplayName(info.chatColor + player.getName() + "§r");
     }
 
     public void equipTeamArmor(Player player, TeamInfo info) {
@@ -258,6 +260,7 @@ public class TeamManager {
         }
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.setPlayerListName(p.getName()); // 恢复Tab名称
+            p.setDisplayName(p.getName()); // 恢复聊天名称
         }
     }
 }

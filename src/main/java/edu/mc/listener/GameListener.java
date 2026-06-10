@@ -35,8 +35,6 @@ public class GameListener implements Listener {
         this.plugin = plugin;
     }
 
-
-
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player player = event.getPlayer();
@@ -50,23 +48,24 @@ public class GameListener implements Listener {
             return;
         }
 
-        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), GameConfig.LOBBY_X, GameConfig.LOBBY_Y, GameConfig.LOBBY_Z);
+        Location lobbyLoc = new Location(Bukkit.getWorlds().get(0), GameConfig.LOBBY_X, GameConfig.LOBBY_Y,
+                GameConfig.LOBBY_Z);
 
         if (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING) {
             player.setMaxHealth(40.0);
             player.setHealth(40.0);
             player.getInventory().clear();
             player.getInventory().setArmorContents(null);
-            
+
             // 第一次生成新图分发
             plugin.getPacketMapManager().giveMap(player);
-            
+
             org.bukkit.inventory.ItemStack mapItem = player.getInventory().getItem(0);
             if (mapItem != null && mapItem.getType() == Material.MAP) {
                 player.getInventory().setItem(0, null);
                 player.getInventory().setItem(4, mapItem);
             }
-            
+
             org.bukkit.inventory.ItemStack paper = new org.bukkit.inventory.ItemStack(Material.PAPER);
             org.bukkit.inventory.meta.ItemMeta paperMeta = paper.getItemMeta();
             paperMeta.setDisplayName("§a选队");
@@ -83,21 +82,24 @@ public class GameListener implements Listener {
             player.updateInventory();
 
             plugin.getPlayerManager().addPlayer(player);
-            event.setJoinMessage("§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " /30)");
+            event.setJoinMessage(
+                    "§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " /30)");
 
             // 1. 立即执行传送
             player.teleport(lobbyLoc);
 
             // 2. 延时 2 ticks 执行传送，防止 1.8 登入包覆盖
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
+                        || plugin.getCurrentState() == GameState.STARTING)) {
                     player.teleport(lobbyLoc);
                 }
             }, 2L);
 
             // 延迟 5 ticks 执行强力二次覆写，斩断原版登入包的残存干扰
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
+                        || plugin.getCurrentState() == GameState.STARTING)) {
                     plugin.getPacketMapManager().removeMap(player);
                     plugin.getPacketMapManager().giveMap(player);
                     player.updateInventory();
@@ -106,7 +108,8 @@ public class GameListener implements Listener {
 
             // 3. 强力兜底：延时 10 ticks 再次执行传送，确保客户端彻底加载完地图后同步坐标
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
+                        || plugin.getCurrentState() == GameState.STARTING)) {
                     player.teleport(lobbyLoc);
                 }
             }, 10L);
@@ -114,7 +117,8 @@ public class GameListener implements Listener {
             // 【终极兜底方案】延时 25 贴（1.25秒）
             // 此时客户端彻底稳定进入了大厅场景。在这里下发最后一次物理覆盖包，彻底粉碎各种幽灵残影。
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY || plugin.getCurrentState() == GameState.STARTING)) {
+                if (player.isOnline() && (plugin.getCurrentState() == GameState.LOBBY
+                        || plugin.getCurrentState() == GameState.STARTING)) {
                     plugin.getPacketMapManager().removeMap(player);
                     plugin.getPacketMapManager().giveMap(player);
                     org.bukkit.inventory.ItemStack delayedMapItem = player.getInventory().getItem(0);
@@ -130,7 +134,7 @@ public class GameListener implements Listener {
             if (plugin.getPlayerManager().getAlivePlayers().contains(player.getUniqueId())) {
                 player.setGameMode(org.bukkit.GameMode.SURVIVAL);
                 player.setMaxHealth(40.0);
-                
+
                 // 掉线重连同样执行 15 ticks 延迟物理灌入覆盖
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     if (player.isOnline()) {
@@ -194,6 +198,7 @@ public class GameListener implements Listener {
         }
         return targetSpectate;
     }
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
@@ -213,9 +218,13 @@ public class GameListener implements Listener {
             checkWinCondition();
         }
     }
+
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         final Player player = event.getEntity();
+
+        // 修复：玩家被打死时如果正在打药，将掉落物中的正在使用的药还原
+        plugin.getHealingManager().handleDeathDrops(player, event.getDrops());
 
         // 注册击杀
         Player killer = player.getKiller();
@@ -225,7 +234,7 @@ public class GameListener implements Listener {
 
         // 防止死亡时掉落雷达地图
         event.getDrops().removeIf(item -> item != null && item.getType() == Material.MAP);
-        
+
         // 防止死亡时掉落队伍帽子，防止伪装
         event.getDrops().removeIf(item -> item != null && item.getType() == Material.LEATHER_HELMET);
 
@@ -234,12 +243,10 @@ public class GameListener implements Listener {
             Block deathBlock = player.getLocation().getBlock();
             if (deathBlock.getY() > 0 && deathBlock.getY() < 255) {
                 Block eastBlock = deathBlock.getRelative(org.bukkit.block.BlockFace.EAST);
-                
+
                 deathBlock.setType(Material.TRAPPED_CHEST);
                 eastBlock.setType(Material.TRAPPED_CHEST);
-                plugin.getGameManager().addDeathBlock(deathBlock.getLocation());
-                plugin.getGameManager().addDeathBlock(eastBlock.getLocation());
-                
+
                 try {
                     org.bukkit.block.Chest chestState = (org.bukkit.block.Chest) deathBlock.getState();
                     org.bukkit.inventory.Inventory inv = chestState.getInventory();
@@ -259,13 +266,17 @@ public class GameListener implements Listener {
                 }
 
                 // 放置四周的遗物箱告示牌
-                org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST };
+                org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH,
+                        org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST };
                 for (org.bukkit.block.BlockFace face : faces) {
                     placeSign(deathBlock.getRelative(face), face, player.getName());
                 }
-                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.EAST), org.bukkit.block.BlockFace.EAST, player.getName());
-                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.NORTH), org.bukkit.block.BlockFace.NORTH, player.getName());
-                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.SOUTH), org.bukkit.block.BlockFace.SOUTH, player.getName());
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.EAST), org.bukkit.block.BlockFace.EAST,
+                        player.getName());
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.NORTH), org.bukkit.block.BlockFace.NORTH,
+                        player.getName());
+                placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.SOUTH), org.bukkit.block.BlockFace.SOUTH,
+                        player.getName());
             }
 
             // 先立即从存活列表移出，保证吃鸡结算的实时性
@@ -371,11 +382,9 @@ public class GameListener implements Listener {
             return;
         }
         GameState state = plugin.getCurrentState();
-        if (state == GameState.INGAME || state == GameState.FLIGHT) {
-            if (plugin.getGameManager().isPlayerPlacedBlock(event.getBlock().getLocation())) {
-                plugin.getGameManager().removePlayerPlacedBlock(event.getBlock().getLocation());
-                return; // 允许破坏玩家自己放置的方块
-            }
+        if ((state == GameState.INGAME || state == GameState.FLIGHT)
+                && event.getBlock().getWorld().getName().equals("game_1")) {
+            return; // 允许在 game_1 世界破坏任何方块
         }
         event.setCancelled(true);
     }
@@ -386,10 +395,9 @@ public class GameListener implements Listener {
             return;
         }
         GameState state = plugin.getCurrentState();
-        if (state == GameState.INGAME || state == GameState.FLIGHT) {
-            // 允许放置任何方块，并记录坐标以便游戏结束时清除
-            plugin.getGameManager().addPlayerPlacedBlock(event.getBlockPlaced().getLocation());
-            return;
+        if ((state == GameState.INGAME || state == GameState.FLIGHT)
+                && event.getBlock().getWorld().getName().equals("game_1")) {
+            return; // 允许在 game_1 世界放置方块
         }
         event.setCancelled(true);
     }
@@ -400,12 +408,16 @@ public class GameListener implements Listener {
      */
     @EventHandler
     public void onPlayerItemConsume(org.bukkit.event.player.PlayerItemConsumeEvent event) {
-        Material type = event.getItem().getType();
-        // 【修复】拦截直接吞食急救鸡等指定物品，并使用 updateInventory 同步背包以防物品数量本地视觉减少
-        if (type == plugin.getDataManager().medkitMaterial || type == Material.GOLDEN_APPLE || type == Material.APPLE || type == Material.BREAD) {
-            event.setCancelled(true);
-            event.getPlayer().updateInventory();
-            return;
+        org.bukkit.inventory.ItemStack item = event.getItem();
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            String name = item.getItemMeta().getDisplayName();
+            if (name.equals(plugin.getDataManager().medkitName) || 
+                name.equals(plugin.getDataManager().bandageName) ||
+                name.equals(plugin.getDataManager().medicalBoxName)) {
+                event.setCancelled(true);
+                event.getPlayer().updateInventory();
+                return;
+            }
         }
         GameState state = plugin.getCurrentState();
         if (state != GameState.INGAME && state != GameState.FLIGHT) {
@@ -416,12 +428,61 @@ public class GameListener implements Listener {
 
     @EventHandler
     public void onEntityExplode(EntityExplodeEvent event) {
-        event.blockList().clear();
+        if (!event.getEntity().getWorld().getName().equals("game_1")) {
+            event.blockList().clear();
+        } else {
+            // 在 game_1 中，只允许 TNT 和 火焰弹 破坏地形（防止苦力怕等其他怪物破坏地图）
+            if (!(event.getEntity() instanceof org.bukkit.entity.TNTPrimed) && 
+                !(event.getEntity() instanceof org.bukkit.entity.Fireball)) {
+                event.blockList().clear();
+            }
+
+            // 【重要修复】原版恶魂火球的爆炸在 1.8 中默认没有实体溅射伤害！必须手动模拟爆炸伤害
+            if (event.getEntity() instanceof org.bukkit.entity.Fireball) {
+                org.bukkit.Location loc = event.getLocation();
+                for (org.bukkit.entity.Entity e : event.getEntity().getNearbyEntities(4, 4, 4)) {
+                    if (e instanceof org.bukkit.entity.Player) {
+                        org.bukkit.entity.Player p = (org.bukkit.entity.Player) e;
+                        double distance = p.getLocation().distance(loc);
+                        if (distance <= 4.0) {
+                            // 距离越近伤害越高。最高基础伤害设置为 10.0 (5心)。
+                            // 当触发 p.damage() 时，会被下方的 onEntityDamageByExplosion 拦截并放大 2 倍！
+                            // 最终最大伤害变成 20.0 (10心)，完美对齐 TNT 的强度。
+                            double damage = ((4.0 - distance) / 4.0) * 10.0;
+                            if (damage > 0) {
+                                p.damage(damage, event.getEntity());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityDamageByExplosion(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (!event.getEntity().getWorld().getName().equals("game_1")) return;
+
+        // 如果是玩家受到伤害，独立放大爆炸伤害
+        if (event.getEntity() instanceof org.bukkit.entity.Player) {
+            org.bukkit.entity.Entity damager = event.getDamager();
+            
+            if (damager instanceof org.bukkit.entity.TNTPrimed) {
+                // TNT 伤害放大 2 倍
+                event.setDamage(event.getDamage() * 2.0);
+            } 
+            else if (damager instanceof org.bukkit.entity.Fireball) {
+                // 火焰弹为了实现“坑小但伤害能媲美原本TNT”，我们将伤害独立放大 2 倍（刚好弥补 yield 差距）
+                event.setDamage(event.getDamage() * 2.0);
+            }
+        }
     }
 
     @EventHandler
     public void onBlockExplode(BlockExplodeEvent event) {
-        event.blockList().clear();
+        if (!event.getBlock().getWorld().getName().equals("game_1")) {
+            event.blockList().clear();
+        }
     }
 
     @EventHandler
@@ -441,6 +502,11 @@ public class GameListener implements Listener {
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         if (event.getPlayer().isOp() && event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE) {
+            return;
+        }
+        // 修复：打药期间禁止丢弃物品
+        if (plugin.getHealingManager().isHealing(event.getPlayer())) {
+            event.setCancelled(true);
             return;
         }
         GameState state = plugin.getCurrentState();
@@ -464,6 +530,14 @@ public class GameListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player))
             return;
         Player p = (Player) event.getWhoClicked();
+
+        // 修复：打药期间禁止操作背包
+        if (plugin.getHealingManager().isHealing(p)) {
+            event.setCancelled(true);
+            p.updateInventory();
+            return;
+        }
+
         if (p.isOp() && p.getGameMode() == org.bukkit.GameMode.CREATIVE) {
             return;
         }
@@ -574,10 +648,13 @@ public class GameListener implements Listener {
                 }
 
                 String name = item.getItemMeta().getDisplayName();
-                
-                boolean isBandage = item.getType() == plugin.getDataManager().bandageMaterial && plugin.getDataManager().bandageName.equals(name);
-                boolean isMedkit = item.getType() == plugin.getDataManager().medkitMaterial && plugin.getDataManager().medkitName.equals(name);
-                boolean isMedicalBox = item.getType() == plugin.getDataManager().medicalBoxMaterial && plugin.getDataManager().medicalBoxName.equals(name);
+
+                boolean isBandage = item.getType() == plugin.getDataManager().bandageMaterial
+                        && plugin.getDataManager().bandageName.equals(name);
+                boolean isMedkit = item.getType() == plugin.getDataManager().medkitMaterial
+                        && plugin.getDataManager().medkitName.equals(name);
+                boolean isMedicalBox = item.getType() == plugin.getDataManager().medicalBoxMaterial
+                        && plugin.getDataManager().medicalBoxName.equals(name);
 
                 if (isBandage) {
                     if (player.getHealth() < player.getMaxHealth()) {
@@ -631,7 +708,7 @@ public class GameListener implements Listener {
                 tnt.setFuseTicks(20); // 1秒爆炸
                 return;
             }
-            
+
             // 投掷 烈焰弹 逻辑
             if (item != null && item.getType() == Material.FIREBALL) {
                 event.setCancelled(true);
@@ -642,7 +719,9 @@ public class GameListener implements Listener {
                         player.setItemInHand(null);
                     }
                 }
-                player.launchProjectile(org.bukkit.entity.Fireball.class);
+                org.bukkit.entity.Fireball fireball = player.launchProjectile(org.bukkit.entity.Fireball.class);
+                fireball.setYield(2.5F); // 设置爆炸威力为2.5（比TNT的4小，但能稳定炸出小坑）
+                fireball.setIsIncendiary(true); // 造成火焰
                 return;
             }
         }
@@ -687,7 +766,7 @@ public class GameListener implements Listener {
                     event.setUseInteractedBlock(org.bukkit.event.Event.Result.ALLOW);
                 }
                 Chest chest = (Chest) block.getState();
-                org.bukkit.inventory.Inventory inv = chest.getInventory();
+                org.bukkit.inventory.Inventory inv = chest.getBlockInventory();
                 Location loc = chest.getLocation();
 
                 // 如果是双箱子（DoubleChest），我们将 Location 统一规范为 DoubleChest 的公共合成 Location
@@ -699,7 +778,9 @@ public class GameListener implements Listener {
                     }
                 }
 
-                // 如果是空投箱（TRAPPED_CHEST），直接跳过物资填充（因为生成时已设定好专属高阶物资）
+
+
+                // 恢复空投箱（TRAPPED_CHEST）跳过逻辑，防止空投高阶物资被普通物资覆盖
                 if (block.getType() == Material.TRAPPED_CHEST) {
                     return;
                 }
@@ -707,20 +788,6 @@ public class GameListener implements Listener {
                 if (!plugin.getLootManager().isChestOpened(loc)) {
                     plugin.getLootManager().populateChest(inv);
                     plugin.getLootManager().markChestOpened(loc);
-                    if (inv instanceof org.bukkit.inventory.DoubleChestInventory) {
-                        org.bukkit.block.DoubleChest holder = ((org.bukkit.inventory.DoubleChestInventory) inv)
-                                .getHolder();
-                        if (holder != null) {
-                            Chest left = (Chest) holder.getLeftSide();
-                            Chest right = (Chest) holder.getRightSide();
-                            if (left != null)
-                                left.update(true);
-                            if (right != null)
-                                right.update(true);
-                        }
-                    } else {
-                        chest.update(true);
-                    }
                 }
             }
         }
@@ -789,17 +856,19 @@ public class GameListener implements Listener {
     private void checkWinCondition() {
         int alive = plugin.getPlayerManager().getAliveCount();
         int initial = plugin.getGameManager().getInitialPlayerCount();
-        if (alive <= 0 || (initial > 1 && plugin.getTeamManager().isOnlyOneTeamLeft(plugin.getPlayerManager().getAlivePlayers()))) {
+        if (alive <= 0 || (initial > 1
+                && plugin.getTeamManager().isOnlyOneTeamLeft(plugin.getPlayerManager().getAlivePlayers()))) {
             plugin.getGameManager().endGame();
         }
     }
 
     private void placeSign(Block block, org.bukkit.block.BlockFace face, String playerName) {
-        if (block.getType() == Material.AIR || block.getType() == Material.WATER || block.getType() == Material.STATIONARY_WATER 
-                || block.getType() == Material.LONG_GRASS || block.getType() == Material.SNOW || block.getType() == Material.DEAD_BUSH
+        if (block.getType() == Material.AIR || block.getType() == Material.WATER
+                || block.getType() == Material.STATIONARY_WATER
+                || block.getType() == Material.LONG_GRASS || block.getType() == Material.SNOW
+                || block.getType() == Material.DEAD_BUSH
                 || block.getType() == Material.YELLOW_FLOWER || block.getType() == Material.RED_ROSE) {
             block.setType(Material.WALL_SIGN);
-            plugin.getGameManager().addDeathBlock(block.getLocation());
             org.bukkit.block.BlockState state = block.getState();
             if (state instanceof org.bukkit.block.Sign) {
                 org.bukkit.block.Sign sign = (org.bukkit.block.Sign) state;

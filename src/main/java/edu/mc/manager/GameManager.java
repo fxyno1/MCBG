@@ -26,50 +26,7 @@ public class GameManager {
     private boolean isPaused = false;
     private int initialPlayerCount = 0;
     
-    private final java.util.List<org.bukkit.Location> placedDeathBlocks = new java.util.ArrayList<>();
-    private final java.util.Set<org.bukkit.Location> playerPlacedBlocks = new java.util.HashSet<>();
-
-    public void addPlayerPlacedBlock(org.bukkit.Location loc) {
-        playerPlacedBlocks.add(loc);
-    }
-
-    public void removePlayerPlacedBlock(org.bukkit.Location loc) {
-        playerPlacedBlocks.remove(loc);
-    }
-
-    public boolean isPlayerPlacedBlock(org.bukkit.Location loc) {
-        return playerPlacedBlocks.contains(loc);
-    }
-
-    public void clearPlayerPlacedBlocks() {
-        for (org.bukkit.Location loc : playerPlacedBlocks) {
-            org.bukkit.block.Block b = loc.getBlock();
-            if (b.getType() != org.bukkit.Material.AIR) {
-                b.setType(org.bukkit.Material.AIR);
-            }
-        }
-        playerPlacedBlocks.clear();
-    }
-
-    public void addDeathBlock(org.bukkit.Location loc) {
-        placedDeathBlocks.add(loc);
-    }
-
-    public void clearDeathBlocks() {
-        for (org.bukkit.Location loc : placedDeathBlocks) {
-            org.bukkit.block.Block b = loc.getBlock();
-            if (b.getType() == org.bukkit.Material.TRAPPED_CHEST || b.getType() == org.bukkit.Material.WALL_SIGN) {
-                if (b.getType() == org.bukkit.Material.TRAPPED_CHEST) {
-                    org.bukkit.block.BlockState state = b.getState();
-                    if (state instanceof org.bukkit.block.Chest) {
-                        ((org.bukkit.block.Chest) state).getInventory().clear();
-                    }
-                }
-                b.setType(org.bukkit.Material.AIR);
-            }
-        }
-        placedDeathBlocks.clear();
-    }
+    // No block tracking needed for multi-world
 
 
 
@@ -160,6 +117,9 @@ public class GameManager {
         }
 
         if (countdownTime <= 0) {
+            // 每次开局前创建临时克隆世界
+            plugin.getWorldManager().createGameWorld();
+
             plugin.setCurrentState(GameState.STARTING);
             // 提前生成随机飞行航线，让存活玩家在 STARTING_COUNTDOWN 秒“准备起飞”的匹配阶段就能在雷达地图上看到并开始策划落点！
             plugin.getFlightManager().prepareFlightPath();
@@ -320,23 +280,13 @@ public class GameManager {
             // 重置各个管理器
             plugin.getPlayerManager().reset();
             plugin.getLootManager().reset();
-            edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
-            if (zm != null) {
-                zm.reset();
-            }
+            plugin.clearZoneManager();
             plugin.getFlightManager().reset();
             plugin.getAirdropManager().reset();
             plugin.getTeamManager().reset();
-            this.clearDeathBlocks();
-            this.clearPlayerPlacedBlocks();
 
-            // 清理地面上的掉落物（如战利品、丢弃的装备和物品等）
-            org.bukkit.World world = Bukkit.getWorlds().get(0);
-            for (org.bukkit.entity.Entity entity : world.getEntities()) {
-                if (entity instanceof org.bukkit.entity.Item) {
-                    entity.remove();
-                }
-            }
+            // 删档：卸载并彻底删除游戏世界
+            plugin.getWorldManager().deleteGameWorld();
 
             plugin.setCurrentState(GameState.LOBBY);
             this.countdownTime = GameConfig.LOBBY_COUNTDOWN;
@@ -347,8 +297,7 @@ public class GameManager {
             // 【修改】每局游戏结束开始下一把时，彻底清空并删除地图缓存文件，实现重新绘制
             plugin.getPacketMapManager().clearAndResetMapFiles();
 
-            world.getWorldBorder().reset();
-
+            org.bukkit.World world = Bukkit.getWorlds().get(0);
             org.bukkit.Location lobbyLoc = new org.bukkit.Location(world,
                     GameConfig.LOBBY_X, GameConfig.LOBBY_Y, GameConfig.LOBBY_Z);
             // ... 在 GameManager.java 的 handleEndingTick() 回归大厅的遍历玩家循环中：
@@ -436,12 +385,7 @@ public class GameManager {
             this.countdownTime = GameConfig.ENDING_COUNTDOWN;
 
             // 立即停止缩圈任务并重置世界边界为默认大边界，消除红幕警告
-            edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
-            if (zm != null) {
-                zm.reset();
-            }
-            org.bukkit.World world = Bukkit.getWorlds().get(0);
-            world.getWorldBorder().reset();
+            plugin.clearZoneManager();
         }
     }
 
@@ -463,6 +407,9 @@ public class GameManager {
 
     public void forceStart() {
         if (plugin.getCurrentState() == GameState.LOBBY) {
+            // 管理员强制开始，也要创建地图
+            plugin.getWorldManager().createGameWorld();
+
             plugin.setCurrentState(GameState.STARTING);
             plugin.getFlightManager().prepareFlightPath();
             plugin.getTeamManager().autoAssignUnassignedPlayers(plugin.getPlayerManager().getAlivePlayers());

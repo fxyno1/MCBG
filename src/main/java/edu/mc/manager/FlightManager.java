@@ -35,7 +35,8 @@ public class FlightManager {
         if (startPoint != null && endPoint != null)
             return; // 避免重复生成
 
-        World world = Bukkit.getWorlds().get(0);
+        World world = Bukkit.getWorld("game_1");
+        if (world == null) return;
         double angle = Math.random() * Math.PI * 2;
 
         double startX = GameConfig.MAP_CENTER_X + Math.cos(angle) * GameConfig.FLIGHT_RADIUS;
@@ -52,7 +53,8 @@ public class FlightManager {
     }
 
     public void startFlight(java.util.Collection<UUID> alivePlayers) {
-        World world = Bukkit.getWorlds().get(0);
+        World world = Bukkit.getWorld("game_1");
+        if (world == null) return;
         if (startPoint == null || endPoint == null) {
             prepareFlightPath();
         }
@@ -77,6 +79,7 @@ public class FlightManager {
                 p.setWalkSpeed(0f);
 
                 p.getInventory().clear();
+                plugin.getPacketMapManager().removeMap(p);
                 plugin.getPacketMapManager().giveMap(p);
                 // 重置雷达地图到第5格(slot 4)
                 org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);

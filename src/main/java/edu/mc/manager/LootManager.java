@@ -39,6 +39,8 @@ public class LootManager {
         int diff = max - min + 1;
         int itemCount = min + (diff > 0 ? random.nextInt(diff) : 0);
         itemCount = Math.min(itemCount, size);
+        
+        plugin.getLogger().info("[LootManager] Populating chest. Size: " + size + ", itemCount: " + itemCount + ", totalWeight: " + plugin.getDataManager().totalLootWeight);
 
         // 创建一个打乱顺序的槽位索引列表，实现无重复位置分配
         java.util.List<Integer> slots = new java.util.ArrayList<>();
@@ -51,6 +53,8 @@ public class LootManager {
             int slot = slots.get(i);
             
             if (plugin.getDataManager().totalLootWeight <= 0) {
+                inventory.setItem(slot, new ItemStack(Material.APPLE, 1));
+                plugin.getLogger().warning("[LootManager] totalLootWeight is 0! Configuration might be broken. Spawning default APPLE.");
                 continue;
             }
             int r = random.nextInt(plugin.getDataManager().totalLootWeight);
@@ -139,10 +143,27 @@ public class LootManager {
                         }
                     }
                 }
-                
+                if (item.getType() == Material.TNT) {
+                    org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+                    if (meta != null) {
+                        meta.setDisplayName("§c手雷");
+                        item.setItemMeta(meta);
+                    }
+                } else if (item.getType() == Material.FIREBALL) {
+                    org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+                    if (meta != null) {
+                        meta.setDisplayName("§6燃烧弹");
+                        item.setItemMeta(meta);
+                    }
+                }
+
                 inventory.setItem(slot, item);
+                plugin.getLogger().info("[LootManager] Added item: " + item.getType() + " at slot: " + slot);
+            } else {
+                plugin.getLogger().info("[LootManager] chosenEntry is null for some reason! r=" + r);
             }
         }
+        plugin.getLogger().info("[LootManager] Chest population complete.");
     }
 
     public void reset() {
