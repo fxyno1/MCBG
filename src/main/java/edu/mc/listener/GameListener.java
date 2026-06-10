@@ -26,10 +26,13 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.Location;
+import java.util.Map;
+import java.util.HashMap;
 
 public class GameListener implements Listener {
 
     private final ChickenDinnerPlugin plugin;
+    private final Map<org.bukkit.Location, Long> deathChestSpawnTimes = new HashMap<>();
 
     public GameListener(ChickenDinnerPlugin plugin) {
         this.plugin = plugin;
@@ -156,7 +159,7 @@ public class GameListener implements Listener {
     private void teleportSpectatorToTarget(Player player) {
         Location spawnLoc = player.getLocation();
         Player targetSpectate = findNearestAlivePlayer(spawnLoc);
-        Location targetLoc = (targetSpectate != null) ? targetSpectate.getLocation()
+        Location targetLoc = (targetSpectate != null) ? targetSpectate.getLocation().clone().add(0, 3.5, 0)
                 : new Location(player.getWorld(), 0.0, 100.0, 16.0);
 
         player.teleport(targetLoc);
@@ -164,7 +167,7 @@ public class GameListener implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline()) {
                 Player target = findNearestAlivePlayer(player.getLocation());
-                Location loc = (target != null) ? target.getLocation()
+                Location loc = (target != null) ? target.getLocation().clone().add(0, 3.5, 0)
                         : new Location(player.getWorld(), 0.0, 100.0, 16.0);
                 player.teleport(loc);
                 if (target != null) {
@@ -176,7 +179,7 @@ public class GameListener implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline()) {
                 Player target = findNearestAlivePlayer(player.getLocation());
-                Location loc = (target != null) ? target.getLocation()
+                Location loc = (target != null) ? target.getLocation().clone().add(0, 3.5, 0)
                         : new Location(player.getWorld(), 0.0, 100.0, 16.0);
                 player.teleport(loc);
             }
@@ -246,6 +249,10 @@ public class GameListener implements Listener {
 
                 deathBlock.setType(Material.TRAPPED_CHEST);
                 eastBlock.setType(Material.TRAPPED_CHEST);
+                
+                long currentTime = System.currentTimeMillis();
+                deathChestSpawnTimes.put(deathBlock.getLocation(), currentTime);
+                deathChestSpawnTimes.put(eastBlock.getLocation(), currentTime);
 
                 try {
                     org.bukkit.block.Chest chestState = (org.bukkit.block.Chest) deathBlock.getState();
@@ -330,7 +337,7 @@ public class GameListener implements Listener {
                             }
                         }
                         if (targetSpectate != null) {
-                            player.teleport(targetSpectate.getLocation());
+                            player.teleport(targetSpectate.getLocation().clone().add(0, 3.5, 0));
                             player.sendMessage("§a已自动为您切换至最近的存活玩家 " + targetSpectate.getName() + " 进行观战！");
                         }
                     }
@@ -384,6 +391,33 @@ public class GameListener implements Listener {
         GameState state = plugin.getCurrentState();
         if ((state == GameState.INGAME || state == GameState.FLIGHT)
                 && event.getBlock().getWorld().getName().equals("game_1")) {
+            
+            Block block = event.getBlock();
+            if (block.getType() == Material.TRAPPED_CHEST || block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST) {
+                Location loc = block.getLocation();
+                Long spawnTime = deathChestSpawnTimes.get(loc);
+                
+                // 如果打破的是告示牌，检查它附着的方块
+                if (spawnTime == null && (block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST)) {
+                    org.bukkit.block.BlockState bState = block.getState();
+                    if (bState instanceof org.bukkit.block.Sign) {
+                        org.bukkit.material.Sign signData = (org.bukkit.material.Sign) bState.getData();
+                        Block attached = block.getRelative(signData.getAttachedFace());
+                        spawnTime = deathChestSpawnTimes.get(attached.getLocation());
+                    }
+                }
+                
+                if (spawnTime != null) {
+                    if (System.currentTimeMillis() - spawnTime < 3000) {
+                        event.getPlayer().sendMessage("§c[保护] 该遗物箱刚刚生成，3秒内无法被破坏！");
+                        event.setCancelled(true);
+                        return;
+                    } else {
+                        deathChestSpawnTimes.remove(loc); // 清理过期数据
+                    }
+                }
+            }
+
             return; // 允许在 game_1 世界破坏任何方块
         }
         event.setCancelled(true);
@@ -759,6 +793,22 @@ public class GameListener implements Listener {
         // 开箱子逻辑
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block block = event.getClickedBlock();
+            
+            // 处理点击遗物箱告示牌的逻辑
+            if (block != null && (block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST)) {
+                org.bukkit.block.Sign sign = (org.bukkit.block.Sign) block.getState();
+                if ("§c[遗物箱]".equals(sign.getLine(0))) {
+                    org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
+                    Block attached = block.getRelative(signData.getAttachedFace());
+                    if (attached.getType() == Material.CHEST || attached.getType() == Material.TRAPPED_CHEST) {
+                        Chest chest = (Chest) attached.getState();
+                        player.openInventory(chest.getInventory());
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+
             if (block != null && (block.getType() == Material.CHEST || block.getType() == Material.TRAPPED_CHEST)) {
                 // 强制允许开箱，无视服务器自带的出生点保护(Spawn Protection)或保护插件导致普通玩家无法开箱的问题
                 if (event.isCancelled() || event.useInteractedBlock() == org.bukkit.event.Event.Result.DENY) {
@@ -854,6 +904,11 @@ public class GameListener implements Listener {
     }
 
     private void checkWinCondition() {
+        GameState state = plugin.getCurrentState();
+        if (state != GameState.INGAME && state != GameState.FLIGHT) {
+            return;
+        }
+
         int alive = plugin.getPlayerManager().getAliveCount();
         int initial = plugin.getGameManager().getInitialPlayerCount();
         if (alive <= 0 || (initial > 1

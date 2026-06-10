@@ -54,6 +54,7 @@ public class WorldManager {
         if (world != null) {
             world.setAutoSave(false); // 禁止自动保存，提高性能，反正是用完即删
             world.setGameRuleValue("mobGriefing", "true"); // 必须开启，否则火焰弹无法破坏地形！
+            world.setGameRuleValue("naturalRegeneration", "false"); // 禁止自然回血
             plugin.getLogger().info("Game world loaded successfully.");
         } else {
             plugin.getLogger().severe("Failed to load game world!");

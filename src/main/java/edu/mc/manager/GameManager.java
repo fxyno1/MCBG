@@ -334,15 +334,29 @@ public class GameManager {
 
                 p.getInventory().setHeldItemSlot(0);
                 p.updateInventory();
-                // 【开局重绘强刷】延迟 5 ticks 再次冲刷新包
+                
+                // 【开局重绘强刷】延迟 10 ticks 再次冲刷新包，并二次强制清空背包，防止跨世界传送导致背包不同步（如 Multiverse 等插件）
                 final Player finalP = p;
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     if (finalP.isOnline() && plugin.getCurrentState() == GameState.LOBBY) {
+                        finalP.getInventory().clear();
+                        finalP.getInventory().setArmorContents(null);
+                        
                         plugin.getPacketMapManager().removeMap(finalP);
                         plugin.getPacketMapManager().giveMap(finalP);
+                        
+                        org.bukkit.inventory.ItemStack delayedMap = finalP.getInventory().getItem(0);
+                        if (delayedMap != null && delayedMap.getType() == org.bukkit.Material.MAP) {
+                            finalP.getInventory().setItem(0, null);
+                            finalP.getInventory().setItem(4, delayedMap);
+                        }
+                        
+                        finalP.getInventory().setItem(0, paper);
+                        finalP.getInventory().setItem(8, feather);
+                        finalP.getInventory().setHeldItemSlot(0);
                         finalP.updateInventory();
                     }
-                }, 5L);
+                }, 10L);
                 p.getInventory().setArmorContents(null);
                 // ... 下方保持原样 ...
                 p.setFoodLevel(19);

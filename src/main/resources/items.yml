@@ -146,12 +146,12 @@ healing:
     material: PAPER
     name: "&a绷带"
     use-time-ticks: 60
-    heal-ratio: 0.2222222
+    heal-ratio: 0.125
   medkit:
     material: COOKED_CHICKEN
     name: "&c急救鸡"
     use-time-ticks: 100
-    heal-ratio: 0.75
+    heal-ratio: 0.5
   medical-box:
     material: CHEST
     name: "&d&l医疗箱"

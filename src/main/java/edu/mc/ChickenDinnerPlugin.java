@@ -48,6 +48,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         mainWorld.setGameRuleValue("mobGriefing", "false");
         mainWorld.setGameRuleValue("doDaylightCycle", "false");
         mainWorld.setGameRuleValue("doFireTick", "false");
+        mainWorld.setGameRuleValue("naturalRegeneration", "false");
         mainWorld.setTime(6000);
         mainWorld.setStorm(false);
         mainWorld.setDifficulty(org.bukkit.Difficulty.NORMAL);

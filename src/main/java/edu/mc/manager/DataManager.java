@@ -116,12 +116,12 @@ public class DataManager {
         bandageMaterial = Material.valueOf(config.getString("healing.bandage.material", "PAPER").toUpperCase());
         bandageName = ChatColor.translateAlternateColorCodes('&', config.getString("healing.bandage.name", "&a绷带"));
         bandageUseTicks = config.getInt("healing.bandage.use-time-ticks", 60);
-        bandageHealRatio = config.getDouble("healing.bandage.heal-ratio", 0.2222222);
+        bandageHealRatio = config.getDouble("healing.bandage.heal-ratio", 0.125);
 
         medkitMaterial = Material.valueOf(config.getString("healing.medkit.material", "COOKED_CHICKEN").toUpperCase());
         medkitName = ChatColor.translateAlternateColorCodes('&', config.getString("healing.medkit.name", "&c急救鸡"));
         medkitUseTicks = config.getInt("healing.medkit.use-time-ticks", 100);
-        medkitHealRatio = config.getDouble("healing.medkit.heal-ratio", 0.75);
+        medkitHealRatio = config.getDouble("healing.medkit.heal-ratio", 0.5);
 
         medicalBoxMaterial = Material.valueOf(config.getString("healing.medical-box.material", "CHEST").toUpperCase());
         medicalBoxName = ChatColor.translateAlternateColorCodes('&', config.getString("healing.medical-box.name", "&d&l医疗箱"));
