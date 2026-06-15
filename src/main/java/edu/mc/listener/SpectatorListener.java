@@ -70,12 +70,13 @@ public class SpectatorListener implements Listener {
                         teamColor = teamInfo.chatColor;
                     }
                 }
-                
+
                 skullMeta.setDisplayName(teamColor + alive.getName());
                 skull.setItemMeta(skullMeta);
-                
+
                 inv.setItem(index++, skull);
-                if (index >= 53) break; // 防止越界
+                if (index >= 53)
+                    break; // 防止越界
             }
         }
 
@@ -90,7 +91,8 @@ public class SpectatorListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) return;
+        if (!(event.getWhoClicked() instanceof Player))
+            return;
         Player player = (Player) event.getWhoClicked();
 
         if (event.getView().getTitle().equals("§c你已被淘汰")) {
@@ -126,7 +128,8 @@ public class SpectatorListener implements Listener {
             // 禁止旁观者移动快捷栏里的特殊物品
             if (plugin.getPlayerManager().isSpectator(player)) {
                 if (event.getCurrentItem() != null) {
-                    if (event.getCurrentItem().getType() == Material.COMPASS || event.getCurrentItem().getType() == Material.BED) {
+                    if (event.getCurrentItem().getType() == Material.COMPASS
+                            || event.getCurrentItem().getType() == Material.BED) {
                         event.setCancelled(true);
                     }
                 }
@@ -139,7 +142,7 @@ public class SpectatorListener implements Listener {
         Player player = event.getPlayer();
         if (plugin.getPlayerManager().isSpectator(player)) {
             if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK ||
-                event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                    event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
                 ItemStack item = player.getItemInHand();
                 if (item != null) {
                     if (item.getType() == Material.COMPASS) {
