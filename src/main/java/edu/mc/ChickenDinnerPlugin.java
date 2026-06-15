@@ -72,6 +72,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.TeamListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new edu.mc.listener.SpectatorListener(this), this);
         getCommand("chickendinner").setExecutor(new edu.mc.command.GameCommand(this)); // 注册游戏核心命令
         getCommand("hub").setExecutor(new edu.mc.command.HubCommand(this));
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");

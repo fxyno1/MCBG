@@ -33,6 +33,7 @@ public class GameListener implements Listener {
 
     private final ChickenDinnerPlugin plugin;
     private final Map<org.bukkit.Location, Long> deathChestSpawnTimes = new HashMap<>();
+    private final Map<java.util.UUID, org.bukkit.Location> deathLocations = new HashMap<>();
 
     public GameListener(ChickenDinnerPlugin plugin) {
         this.plugin = plugin;
@@ -191,7 +192,10 @@ public class GameListener implements Listener {
         double minDistance = Double.MAX_VALUE;
         for (java.util.UUID aliveId : plugin.getPlayerManager().getAlivePlayers()) {
             Player alive = Bukkit.getPlayer(aliveId);
-            if (alive != null && alive.isOnline() && alive.getWorld().equals(origin.getWorld())) {
+            if (alive != null && alive.isOnline()) {
+                if (!alive.getWorld().equals(origin.getWorld())) {
+                    return alive; // If in different worlds, just return the first alive player found
+                }
                 double dist = alive.getLocation().distanceSquared(origin);
                 if (dist < minDistance) {
                     minDistance = dist;
@@ -298,6 +302,7 @@ public class GameListener implements Listener {
         }
 
         final org.bukkit.Location deathLoc = player.getLocation();
+        deathLocations.put(player.getUniqueId(), deathLoc);
         Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
             @Override
             public void run() {
@@ -323,12 +328,32 @@ public class GameListener implements Listener {
                         plugin.getPacketMapManager().removeMap(player);
                         player.sendMessage("§c你已被淘汰！现在是观察者模式。");
 
+                        org.bukkit.inventory.ItemStack compass = new org.bukkit.inventory.ItemStack(Material.COMPASS);
+                        org.bukkit.inventory.meta.ItemMeta compassMeta = compass.getItemMeta();
+                        compassMeta.setDisplayName("§a观战列表");
+                        compass.setItemMeta(compassMeta);
+                        player.getInventory().setItem(0, compass);
+
+                        org.bukkit.inventory.ItemStack bed = new org.bukkit.inventory.ItemStack(Material.BED);
+                        org.bukkit.inventory.meta.ItemMeta bedMeta = bed.getItemMeta();
+                        bedMeta.setDisplayName("§c退出到大厅");
+                        bed.setItemMeta(bedMeta);
+                        player.getInventory().setItem(8, bed);
+
+                        player.updateInventory();
+
+                        edu.mc.listener.SpectatorListener.openDeathMenu(player);
+
                         // 寻找最近的存活玩家并传送过去观战
                         Player targetSpectate = null;
                         double minDistance = Double.MAX_VALUE;
                         for (java.util.UUID aliveId : plugin.getPlayerManager().getAlivePlayers()) {
                             Player alive = Bukkit.getPlayer(aliveId);
-                            if (alive != null && alive.isOnline() && alive.getWorld().equals(player.getWorld())) {
+                            if (alive != null && alive.isOnline()) {
+                                if (!alive.getWorld().equals(deathLoc.getWorld())) {
+                                    targetSpectate = alive;
+                                    break;
+                                }
                                 double dist = alive.getLocation().distanceSquared(deathLoc);
                                 if (dist < minDistance) {
                                     minDistance = dist;
@@ -855,6 +880,11 @@ public class GameListener implements Listener {
         // 如果是游戏中死亡复活的旁观者玩家，确保其没有残留地图且为 SPECTATOR
         if (state == GameState.INGAME || state == GameState.FLIGHT || state == GameState.ENDING) {
             if (plugin.getPlayerManager().isSpectator(player)) {
+                org.bukkit.Location deathLoc = deathLocations.get(player.getUniqueId());
+                if (deathLoc != null) {
+                    event.setRespawnLocation(deathLoc);
+                }
+
                 player.getInventory().clear();
                 plugin.getPacketMapManager().removeMap(player);
 

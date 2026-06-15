@@ -153,7 +153,7 @@ public class PacketMapManager {
         loadTerrain();
     }
 
-    // 动态计算并构建包含玩家当前位置与朝向及队友位置的 MapIcon 数组 (原版三角指针)
+    // 动态计算并构建包含玩家当前位置与朝向的 MapIcon 数组 (原版三角指针)
     private Object getPlayerIconArray(Player player) {
         try {
             Class<?> mapIconClass = com.comphenix.protocol.utility.MinecraftReflection.getMinecraftClass("MapIcon");
@@ -168,24 +168,7 @@ public class PacketMapManager {
                 icons.add(selfIcon);
             }
 
-            // 添加队友
-            Integer teamId = plugin.getTeamManager().getTeam(player.getUniqueId());
-            if (teamId != null) {
-                List<UUID> teamPlayers = plugin.getTeamManager().getPlayersInTeam(teamId);
-                for (UUID teammateId : teamPlayers) {
-                    if (!teammateId.equals(player.getUniqueId())) {
-                        Player teammate = Bukkit.getPlayer(teammateId);
-                        if (teammate != null && teammate.isOnline() && teammate.getWorld().equals(player.getWorld())) {
-                            if (plugin.getPlayerManager().isAlive(teammate)) {
-                                Object teammateIcon = createMapIcon(constr, teammate, (byte) 1);
-                                if (teammateIcon != null) {
-                                    icons.add(teammateIcon);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            // 队友和所有其他存活玩家不再使用原生指针，改为在 renderFrame 中直接手绘队伍颜色的像素方块！
 
             Object array = java.lang.reflect.Array.newInstance(mapIconClass, icons.size());
             for (int i = 0; i < icons.size(); i++) {
@@ -551,25 +534,50 @@ public class PacketMapManager {
             }
         }
 
-        // 【已注销】手绘的黄色十字与朝向线（现已改用原版三角指针）
-        /*
-         * int px = worldToPixelX(player.getLocation().getX());
-         * int pz = worldToPixelZ(player.getLocation().getZ());
-         * for (int r = -1; r <= 1; r++) {
-         * for (int c = -1; c <= 1; c++) {
-         * if (Math.abs(r) + Math.abs(c) <= 1) {
-         * setPixel(frame, px + r, pz + c, colorPlayer);
-         * }
-         * }
-         * }
-         * 
-         * double yawRad = Math.toRadians(player.getLocation().getYaw());
-         * int dx = (int) Math.round(px - Math.sin(yawRad) *
-         * GameConfig.MAP_DIRECTION_LINE_LENGTH);
-         * int dz = (int) Math.round(pz + Math.cos(yawRad) *
-         * GameConfig.MAP_DIRECTION_LINE_LENGTH);
-         * drawLineOnBytes(frame, px, pz, dx, dz, colorPlayer, false);
-         */
+        // 绘制彩色队友/全场存活玩家标识
+        if (state == GameState.INGAME || state == GameState.FLIGHT || state == GameState.STARTING || state == GameState.ENDING) {
+            boolean isSpectator = plugin.getPlayerManager().isSpectator(player);
+            Integer myTeam = plugin.getTeamManager().getTeam(player.getUniqueId());
+
+            for (UUID aliveId : plugin.getPlayerManager().getAlivePlayers()) {
+                Player alive = Bukkit.getPlayer(aliveId);
+                if (alive != null && alive.isOnline() && alive.getWorld().equals(world)) {
+                    if (alive.getUniqueId().equals(player.getUniqueId())) continue;
+
+                    boolean shouldDraw = false;
+                    if (isSpectator) {
+                        shouldDraw = true;
+                    } else if (myTeam != null) {
+                        Integer aliveTeam = plugin.getTeamManager().getTeam(aliveId);
+                        if (myTeam.equals(aliveTeam)) {
+                            shouldDraw = true;
+                        }
+                    }
+
+                    if (shouldDraw) {
+                        int px = worldToPixelX(alive.getLocation().getX());
+                        int pz = worldToPixelZ(alive.getLocation().getZ());
+                        
+                        byte iconColor = colorPlayer; // 默认黄色
+                        Integer teamId = plugin.getTeamManager().getTeam(aliveId);
+                        if (teamId != null) {
+                            edu.mc.manager.TeamManager.TeamInfo info = plugin.getTeamManager().getTeamInfo(teamId);
+                            if (info != null && info.armorColor != null) {
+                                org.bukkit.Color tc = info.armorColor;
+                                iconColor = org.bukkit.map.MapPalette.matchColor(tc.getRed(), tc.getGreen(), tc.getBlue());
+                            }
+                        }
+
+                        // 绘制 3x3 方块，更加醒目
+                        for (int r = -1; r <= 1; r++) {
+                            for (int c = -1; c <= 1; c++) {
+                                setPixel(frame, px + r, pz + c, iconColor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         return frame;
     }
