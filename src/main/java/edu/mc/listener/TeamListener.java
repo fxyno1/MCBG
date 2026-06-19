@@ -24,7 +24,7 @@ public class TeamListener implements Listener {
     }
 
     public void openTeamGUI(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, "§a选择一个队伍");
+        Inventory inv = Bukkit.createInventory(null, 54, plugin.getMessageManager().getMessage("gui.team_select"));
         TeamManager tm = plugin.getTeamManager();
         
         for (int i = 1; i <= TeamManager.MAX_TEAMS; i++) {
@@ -35,11 +35,14 @@ public class TeamListener implements Listener {
                 if (meta != null) {
                     java.util.List<String> lore = new java.util.ArrayList<>();
                     int size = tm.getPlayersInTeam(i).size();
-                    lore.add("§7当前人数: §e" + size + "§7/§e" + TeamManager.MAX_PLAYERS_PER_TEAM);
+                    java.util.Map<String, String> countMap = new java.util.HashMap<>();
+                    countMap.put("count", String.valueOf(size));
+                    countMap.put("max", String.valueOf(TeamManager.MAX_PLAYERS_PER_TEAM));
+                    lore.add(plugin.getMessageManager().getMessage("gui.team_count", countMap));
                     if (size >= TeamManager.MAX_PLAYERS_PER_TEAM) {
-                        lore.add("§c队伍已满");
+                        lore.add(plugin.getMessageManager().getMessage("gui.team_full"));
                     } else {
-                        lore.add("§a点击加入");
+                        lore.add(plugin.getMessageManager().getMessage("gui.team_join"));
                     }
                     meta.setLore(lore);
                     item.setItemMeta(meta);
@@ -102,7 +105,7 @@ public class TeamListener implements Listener {
             }
         }
 
-        if (event.getView().getTitle().equals("§a选择一个队伍")) {
+        if (event.getView().getTitle().equals(plugin.getMessageManager().getMessage("gui.team_select"))) {
             event.setCancelled(true);
             ItemStack clickedItem = event.getCurrentItem();
             if (clickedItem != null && clickedItem.getType() == Material.LEATHER_HELMET) {

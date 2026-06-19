@@ -27,7 +27,7 @@ public class GameCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission(PERMISSION_ADMIN)) {
-            sender.sendMessage(COLOR_ERROR + "你没有权限执行此命令！");
+            sender.sendMessage(plugin.getMessageManager().getMessage("system.no_permission"));
             return true;
         }
 
@@ -85,7 +85,7 @@ public class GameCommand implements CommandExecutor {
         }
 
         plugin.getGameManager().forceStart();
-        sender.sendMessage(COLOR_SUCCESS + "已成功强制开始比赛！");
+        sender.sendMessage(plugin.getMessageManager().getMessage("system.force_start"));
     }
 
     private void handlePause(CommandSender sender) {
@@ -95,7 +95,7 @@ public class GameCommand implements CommandExecutor {
         }
 
         boolean paused = plugin.getGameManager().togglePause();
-        sender.sendMessage(paused ? COLOR_SUCCESS + "游戏倒计时已【暂停】！" : COLOR_SUCCESS + "游戏倒计时已【恢复】！");
+        sender.sendMessage(paused ? plugin.getMessageManager().getMessage("system.pause") : plugin.getMessageManager().getMessage("system.resume"));
     }
 
     private void handleSkip(CommandSender sender) {
@@ -105,7 +105,7 @@ public class GameCommand implements CommandExecutor {
         }
 
         plugin.getGameManager().skipPhase();
-        sender.sendMessage(COLOR_SUCCESS + "已跳过当前阶段！");
+        sender.sendMessage(plugin.getMessageManager().getMessage("system.skip_wait"));
     }
 
     private void handleStop(CommandSender sender) {
@@ -132,7 +132,9 @@ public class GameCommand implements CommandExecutor {
         try {
             int seconds = Integer.parseInt(args[1]);
             plugin.getGameManager().setCountdownTime(seconds);
-            sender.sendMessage(COLOR_SUCCESS + "已成功将当前倒计时设为" + seconds + " 秒！");
+            java.util.Map<String, String> map = new java.util.HashMap<>();
+            map.put("time", String.valueOf(seconds));
+            sender.sendMessage(plugin.getMessageManager().getMessage("system.set_time", map));
         } catch (NumberFormatException e) {
             sender.sendMessage(COLOR_ERROR + "输入的秒数格式不正确！");
         }
@@ -155,7 +157,7 @@ public class GameCommand implements CommandExecutor {
             p.updateInventory();
         }
 
-        sender.sendMessage(COLOR_SUCCESS + "§l[系统] 已成功对全服玩家的战术GPS雷达下达了强刷清空指令！");
+        sender.sendMessage(plugin.getMessageManager().getMessage("system.radar_reset"));
     }
 
     private void handleReload(CommandSender sender) {

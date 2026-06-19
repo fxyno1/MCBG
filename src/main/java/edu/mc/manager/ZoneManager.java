@@ -60,7 +60,7 @@ public class ZoneManager {
         this.targetZ = 16.0;
         this.targetSize = 600.0;
 
-        Bukkit.broadcastMessage("§a[安全区] 战术雷达GPS已上线。落地后将公布第一波安全区！");
+        Bukkit.broadcastMessage(((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.radar_online"));
     }
 
     public void generateNextZone() {
@@ -165,7 +165,7 @@ public class ZoneManager {
 
                         // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段 of 白圈参数！
                         generateNextZone();
-                        Bukkit.broadcastMessage("§a[安全区] 毒圈收缩完毕。下一波安全区（白色区域）已在GPS雷达中标出！");
+                        Bukkit.broadcastMessage(((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.shrink_done"));
                         return;
                     }
                     currentTick += 20; // 每一秒更新一次
@@ -187,10 +187,12 @@ public class ZoneManager {
             generateNextZone();
         }
 
-        Bukkit.broadcastMessage("§c[安全区] 第" + (phase + 1) + "级毒圈开始向白圈位置收缩！");
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        map.put("phase", String.valueOf(phase + 1));
+        Bukkit.broadcastMessage(((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.shrink_start", map));
 
         Bukkit.getOnlinePlayers().forEach(p -> {
-            ((ChickenDinnerPlugin) plugin).sendTitle(p, "§c边界开始收缩", "§e请尽快前往白圈安全区！", 10, 60, 10);
+            ((ChickenDinnerPlugin) plugin).sendTitle(p, ((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.title_shrink_start"), ((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.title_shrink_start_sub"), 10, 60, 10);
         });
 
         // 每次开始缩圈时，在目标白圈内生成一个空投

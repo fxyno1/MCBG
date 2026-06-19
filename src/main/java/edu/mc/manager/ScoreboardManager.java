@@ -8,6 +8,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import java.io.File;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,9 +24,23 @@ public class ScoreboardManager {
     private final Map<UUID, Scoreboard> playerScoreboards = new ConcurrentHashMap<>();
     private final Map<UUID, List<String>> lastLines = new ConcurrentHashMap<>();
     private org.bukkit.scheduler.BukkitTask updateTask;
+    private FileConfiguration config;
 
     public ScoreboardManager(ChickenDinnerPlugin plugin) {
         this.plugin = plugin;
+        loadConfig();
+    }
+
+    public void loadConfig() {
+        File file = new File(plugin.getDataFolder(), "scoreboard.yml");
+        if (!file.exists()) {
+            plugin.saveResource("scoreboard.yml", false);
+        }
+        config = YamlConfiguration.loadConfiguration(file);
+    }
+    
+    private String getStr(String path) {
+        return org.bukkit.ChatColor.translateAlternateColorCodes('&', config.getString(path, ""));
     }
 
     public void start() {
@@ -60,10 +77,11 @@ public class ScoreboardManager {
     private void updateScoreboard(Player player) {
         UUID uuid = player.getUniqueId();
         Scoreboard scoreboard = playerScoreboards.get(uuid);
+        String mainTitle = getStr("title");
         if (scoreboard == null) {
             scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
             Objective obj = scoreboard.registerNewObjective("mcbg", "dummy");
-            obj.setDisplayName("§e§l代号:吃鸡");
+            obj.setDisplayName(mainTitle);
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             playerScoreboards.put(uuid, scoreboard);
             player.setScoreboard(scoreboard);
@@ -72,8 +90,12 @@ public class ScoreboardManager {
         Objective obj = scoreboard.getObjective("mcbg");
         if (obj == null) {
             obj = scoreboard.registerNewObjective("mcbg", "dummy");
-            obj.setDisplayName("§e§l代号:吃鸡");
+            obj.setDisplayName(mainTitle);
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        }
+        // Force title update if changed
+        if (!obj.getDisplayName().equals(mainTitle)) {
+            obj.setDisplayName(mainTitle);
         }
 
         List<String> newLines = new ArrayList<>();
@@ -81,39 +103,37 @@ public class ScoreboardManager {
 
         if (state == GameState.LOBBY || state == GameState.STARTING) {
             // 模式
-            String modeStr = "§f模式:  §a单人";
+            String modeStr = getStr("lines.mode.solo");
             // 玩家: X/MAX
-            String playersStr = "§f玩家:  §a" + plugin.getPlayerManager().getAliveCount() + "/30";
+            String playersStr = getStr("lines.wait").replace("{players}", String.valueOf(plugin.getPlayerManager().getAliveCount())).replace("{max_players}", "30");
             // 状态
-            String statusStr = "§f状态:  §a可加入...";
+            String statusStr = getStr("lines.status.waiting");
 
             newLines.add("§1");
             newLines.add(modeStr);
             newLines.add(playersStr);
             newLines.add(statusStr);
             newLines.add("§2");
-            newLines.add("§a游戏即将开始");
-            newLines.add("§3");
-            newLines.add("  §e✿§e花雨庭§e✿");
+            for (String footerLine : config.getStringList("lines.footer")) {
+                newLines.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', footerLine));
+            }
         } else {
-            // 1. 游戏时间
-            String timeStr = "§f游戏时间: §a00:00";
-            if (state == GameState.FLIGHT || state == GameState.INGAME) {
-                int totalSeconds = plugin.getGameManager().getGameTimeSeconds();
-                int min = totalSeconds / 60;
-                int sec = totalSeconds % 60;
-                timeStr = String.format("§f游戏时间: §a%02d:%02d", min, sec);
-            } else if (state == GameState.ENDING) {
+            // 1. 游戏时间 (using a hardcoded generic timer for now, or adapt later if there's a specific format in scoreboard.yml. Since we didn't add game time format in yml, I'll keep the logic but translate it if we added it, wait I didn't add it in scoreboard.yml, let me just add it implicitly or hardcode the logic for time).
+            int totalSeconds = plugin.getGameManager().getGameTimeSeconds();
+            int min = totalSeconds / 60;
+            int sec = totalSeconds % 60;
+            String timeStr = "§f游戏时间: §a" + String.format("%02d:%02d", min, sec);
+            if (state == GameState.ENDING) {
                 timeStr = "§f游戏时间: §a已结束";
             }
 
             // 2. 击杀数
             int kills = plugin.getPlayerManager().getKills(player);
-            String killsStr = "§f击杀数: §a" + kills;
+            String killsStr = getStr("lines.kills").replace("{kills}", String.valueOf(kills));
 
             // 3. 存活玩家
             int aliveCount = plugin.getPlayerManager().getAliveCount();
-            String aliveStr = "§f存活玩家: §a" + aliveCount;
+            String aliveStr = getStr("lines.alive").replace("{alive}", String.valueOf(aliveCount));
 
             // 4. 缩圈时间
             String shrinkTimeStr = "§f缩圈时间: §a--";
@@ -123,9 +143,9 @@ public class ScoreboardManager {
                 edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
                 if (zm != null) {
                     if (zm.isShrinking()) {
-                        shrinkTimeStr = "§f缩圈时间: §a收缩中";
+                        shrinkTimeStr = getStr("lines.zone.shrinking");
                     } else {
-                        shrinkTimeStr = "§f缩圈时间: §a" + plugin.getGameManager().getCountdownTime();
+                        shrinkTimeStr = getStr("lines.zone.wait").replace("{time}", String.valueOf(plugin.getGameManager().getCountdownTime()));
                     }
                 }
             } else if (state == GameState.ENDING) {
@@ -156,7 +176,9 @@ public class ScoreboardManager {
             newLines.add(centerStr);
             newLines.add(borderSizeStr);
             newLines.add("§3");
-            newLines.add("  §e✿§e花雨庭§e✿");
+            for (String footerLine : config.getStringList("lines.footer")) {
+                newLines.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', footerLine));
+            }
         }
 
         // --- 同步各个玩家头上的队伍颜色 ---

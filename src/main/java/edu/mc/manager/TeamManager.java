@@ -1,12 +1,16 @@
 package edu.mc.manager;
 
+import edu.mc.ChickenDinnerPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +23,7 @@ public class TeamManager {
     public static final int MAX_TEAMS = 30;
     public static final int MAX_PLAYERS_PER_TEAM = 4;
 
+    private final ChickenDinnerPlugin plugin;
     private final Map<UUID, Integer> playerTeamMap = new HashMap<>();
     private final Map<Integer, List<UUID>> teamPlayersMap = new HashMap<>();
     private final Map<Integer, TeamInfo> teamInfoMap = new HashMap<>();
@@ -37,7 +42,8 @@ public class TeamManager {
         }
     }
 
-    public TeamManager() {
+    public TeamManager(ChickenDinnerPlugin plugin) {
+        this.plugin = plugin;
         initTeams();
         for (int i = 1; i <= MAX_TEAMS; i++) {
             teamPlayersMap.put(i, new ArrayList<>());
@@ -45,37 +51,27 @@ public class TeamManager {
     }
 
     private void initTeams() {
-        // 初始化 30 个队伍的信息
-        addTeam(1, "红色队", "§c", Color.fromRGB(255, 0, 0));
-        addTeam(2, "蓝色队", "§9", Color.fromRGB(0, 0, 255));
-        addTeam(3, "绿色队", "§a", Color.fromRGB(0, 255, 0));
-        addTeam(4, "黄色队", "§e", Color.fromRGB(255, 255, 0));
-        addTeam(5, "橙色队", "§6", Color.fromRGB(255, 165, 0));
-        addTeam(6, "紫色队", "§5", Color.fromRGB(128, 0, 128));
-        addTeam(7, "粉色队", "§d", Color.fromRGB(255, 192, 203));
-        addTeam(8, "青色队", "§b", Color.fromRGB(0, 255, 255));
-        addTeam(9, "黑色队", "§0", Color.fromRGB(0, 0, 0));
-        addTeam(10, "白色队", "§f", Color.fromRGB(255, 255, 255));
-        addTeam(11, "灰色队", "§8", Color.fromRGB(128, 128, 128));
-        addTeam(12, "浅灰队", "§7", Color.fromRGB(192, 192, 192));
-        addTeam(13, "棕色队", "§6", Color.fromRGB(139, 69, 19));
-        addTeam(14, "浅蓝队", "§b", Color.fromRGB(173, 216, 230));
-        addTeam(15, "浅绿队", "§a", Color.fromRGB(144, 238, 144));
-        addTeam(16, "品红队", "§d", Color.fromRGB(255, 0, 255));
-        addTeam(17, "深红队", "§4", Color.fromRGB(139, 0, 0));
-        addTeam(18, "海军蓝", "§1", Color.fromRGB(0, 0, 128));
-        addTeam(19, "橄榄绿", "§2", Color.fromRGB(128, 128, 0));
-        addTeam(20, "金色队", "§6", Color.fromRGB(255, 215, 0));
-        addTeam(21, "银色队", "§7", Color.fromRGB(192, 192, 192));
-        addTeam(22, "栗色队", "§4", Color.fromRGB(128, 0, 0));
-        addTeam(23, "水鸭青", "§3", Color.fromRGB(0, 128, 128));
-        addTeam(24, "珊瑚色", "§c", Color.fromRGB(255, 127, 80));
-        addTeam(25, "鲑鱼粉", "§c", Color.fromRGB(250, 128, 114));
-        addTeam(26, "靛蓝色", "§9", Color.fromRGB(75, 0, 130));
-        addTeam(27, "紫罗兰", "§5", Color.fromRGB(238, 130, 238));
-        addTeam(28, "卡其色", "§e", Color.fromRGB(240, 230, 140));
-        addTeam(29, "兰花紫", "§d", Color.fromRGB(218, 112, 214));
-        addTeam(30, "番茄红", "§c", Color.fromRGB(255, 99, 71));
+        File file = new File(plugin.getDataFolder(), "teams.yml");
+        if (!file.exists()) {
+            plugin.saveResource("teams.yml", false);
+        }
+        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+
+        if (config.contains("teams")) {
+            for (String key : config.getConfigurationSection("teams").getKeys(false)) {
+                try {
+                    int id = Integer.parseInt(key);
+                    String name = config.getString("teams." + key + ".name");
+                    String chatColor = org.bukkit.ChatColor.translateAlternateColorCodes('&', config.getString("teams." + key + ".chat-color"));
+                    String rgbStr = config.getString("teams." + key + ".color-rgb");
+                    String[] rgb = rgbStr.split(",");
+                    Color color = Color.fromRGB(Integer.parseInt(rgb[0].trim()), Integer.parseInt(rgb[1].trim()), Integer.parseInt(rgb[2].trim()));
+                    addTeam(id, name, chatColor, color);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Error loading team: " + key);
+                }
+            }
+        }
     }
 
     private void addTeam(int id, String name, String chatColor, Color color) {
@@ -101,14 +97,14 @@ public class TeamManager {
     public boolean joinTeam(Player player, int teamId) {
         List<UUID> currentPlayers = getPlayersInTeam(teamId);
         if (currentPlayers.size() >= MAX_PLAYERS_PER_TEAM) {
-            player.sendMessage("§c该队伍已满！");
+            player.sendMessage(plugin.getMessageManager().getMessage("team.full"));
             return false;
         }
 
         Integer oldTeam = playerTeamMap.get(player.getUniqueId());
         if (oldTeam != null) {
             if (oldTeam == teamId) {
-                player.sendMessage("§c你已经在这个队伍中了！");
+                player.sendMessage(plugin.getMessageManager().getMessage("team.already_in"));
                 return false;
             }
             teamPlayersMap.get(oldTeam).remove(player.getUniqueId());
@@ -118,7 +114,10 @@ public class TeamManager {
         teamPlayersMap.get(teamId).add(player.getUniqueId());
 
         TeamInfo info = getTeamInfo(teamId);
-        player.sendMessage("§a你已成功加入 " + info.chatColor + info.name + "§a！");
+        
+        java.util.Map<String, String> placeholders = new java.util.HashMap<>();
+        placeholders.put("team", info.chatColor + info.name);
+        player.sendMessage(plugin.getMessageManager().getMessage("team.join_success", placeholders));
 
         updateTabName(player, info);
         equipTeamArmor(player, info);
@@ -211,11 +210,15 @@ public class TeamManager {
                 playerTeamMap.put(uuid, assignedTeam);
                 teamPlayersMap.get(assignedTeam).add(uuid);
                 TeamInfo info = getTeamInfo(assignedTeam);
-                p.sendMessage("§a[系统] 游戏即将开始，已为您自动分配到 " + info.chatColor + info.name);
+                
+                java.util.Map<String, String> placeholders = new java.util.HashMap<>();
+                placeholders.put("team", info.chatColor + info.name);
+                p.sendMessage(plugin.getMessageManager().getMessage("team.auto_assign", placeholders));
+                
                 updateTabName(p, info);
                 equipTeamArmor(p, info);
             } else {
-                p.sendMessage("§c队伍已满，无法分配队伍！");
+                p.sendMessage(plugin.getMessageManager().getMessage("team.auto_assign_fail"));
             }
         }
     }

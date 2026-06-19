@@ -84,7 +84,7 @@ public class GameManager {
         // 人数满 30 人时缩短倒计时至 15 秒
         if (currentPlayers >= 30 && this.countdownTime > 15) {
             this.countdownTime = 15;
-            Bukkit.broadcastMessage("§a[游戏广播] 人数已达 30 人，倒计时缩短至 15 秒！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.countdown_short"));
         }
 
         countdownTime--;
@@ -92,11 +92,15 @@ public class GameManager {
         if (countdownTime > 0) {
             boolean isKeyNode = (countdownTime == 10 || countdownTime <= 5);
             if (isKeyNode) {
-                Bukkit.broadcastMessage("§e[游戏广播] 距离比赛开始还剩 §c" + countdownTime + " §e秒！");
+                java.util.Map<String, String> map = new java.util.HashMap<>();
+                map.put("time", String.valueOf(countdownTime));
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.countdown", map));
             }
             Bukkit.getOnlinePlayers().forEach(p -> {
                 if (isKeyNode) {
-                    plugin.sendTitle(p, "§c" + countdownTime, "§e准备开战!", 0, 20, 0);
+                    java.util.Map<String, String> map = new java.util.HashMap<>();
+                    map.put("time", String.valueOf(countdownTime));
+                    plugin.sendTitle(p, plugin.getMessageManager().getMessage("game.title_countdown", map), plugin.getMessageManager().getMessage("game.title_countdown_sub"), 0, 20, 0);
                     p.playSound(p.getLocation(), org.bukkit.Sound.ORB_PICKUP, 1F, 1F);
                 }
 
@@ -166,7 +170,9 @@ public class GameManager {
         });
 
         if (countdownTime > 0) {
-            Bukkit.broadcastMessage("§a[游戏广播] 正在匹配航线... 准备起飞: §6" + countdownTime);
+            java.util.Map<String, String> map = new java.util.HashMap<>();
+            map.put("time", String.valueOf(countdownTime));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.matching", map));
         } else {
             plugin.setCurrentState(GameState.FLIGHT);
             this.countdownTime = GameConfig.FLIGHT_PHASE_COUNTDOWN;
@@ -185,7 +191,7 @@ public class GameManager {
 
             plugin.initZoneManager();
 
-            Bukkit.broadcastMessage("§e[游戏广播] 比赛正式开始！你有 1 分钟的安全时间搜刮物资，毒圈随后开始收缩！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.start"));
         }
     }
 
@@ -201,9 +207,11 @@ public class GameManager {
                 zm.generateNextZone(); // 生成第一波安全区（直径 400）
             }
 
-            Bukkit.broadcastMessage("§e[安全区] 飞机航线已结束，全部玩家已安全落地！");
-            Bukkit.broadcastMessage("§a§l[雷达系统] 第一波安全区（白色区域）已在您的 GPS 雷达中公布！");
-            Bukkit.broadcastMessage("§e[安全区] 毒圈将在 150 秒后开始向白圈进行首次收缩！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.landed"));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.zone_first_radar"));
+            java.util.Map<String, String> map = new java.util.HashMap<>();
+            map.put("time", String.valueOf(GameConfig.INGAME_FIRST_WAIT));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.zone_first_wait", map));
         }
     }
 
@@ -235,20 +243,20 @@ public class GameManager {
 
         // 优化：只在关键时间点提醒，不刷屏
         if (countdownTime == GameConfig.INGAME_BETWEEN_SHRINK_WAIT - 1) { // 刚刚产生下一圈时（扣了1秒）
-            Bukkit.broadcastMessage("§e[安全区] 新的安全区已在雷达地图上标记，毒圈将在一段时间后开始收缩！");
-            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, "§a新安全区已刷新", "§e请查看战术雷达！", 10, 60, 10));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("zone.new_zone"));
+            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, plugin.getMessageManager().getMessage("zone.title_new_zone"), plugin.getMessageManager().getMessage("zone.title_new_zone_sub"), 10, 60, 10));
         } else if (countdownTime == 60) {
-            Bukkit.broadcastMessage("§e[安全区] 距离毒圈收缩还有 §c1分钟 §e！");
-            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, "§c毒圈逼近", "§e距离缩圈还有 1 分钟", 10, 40, 10));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("zone.warn_1min"));
+            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, plugin.getMessageManager().getMessage("zone.title_warn_1min"), plugin.getMessageManager().getMessage("zone.title_warn_1min_sub"), 10, 40, 10));
         } else if (countdownTime == 30) {
-            Bukkit.broadcastMessage("§c[警告] 距离毒圈收缩还有 §e30秒 §c！");
-            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, "§c危险警告", "§e毒圈将在 30 秒后收缩", 10, 40, 10));
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("zone.warn_30s"));
+            Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, plugin.getMessageManager().getMessage("zone.title_warn_30s"), plugin.getMessageManager().getMessage("zone.title_warn_30s_sub"), 10, 40, 10));
         } else if (countdownTime <= 0) {
             if (zm != null && !zm.isMaxPhase()) {
                 zm.shrinkToNextPhase();
                 this.countdownTime = GameConfig.INGAME_BETWEEN_SHRINK_WAIT;
-                Bukkit.broadcastMessage("§c[安全区] 毒圈开始收缩，请尽快进入白圈！");
-                Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, "§4毒圈开始收缩", "§c快跑！", 10, 60, 10));
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("zone.shrinking"));
+                Bukkit.getOnlinePlayers().forEach(p -> plugin.sendTitle(p, plugin.getMessageManager().getMessage("zone.title_shrinking"), plugin.getMessageManager().getMessage("zone.title_shrinking_sub"), 10, 60, 10));
             } else {
                 this.countdownTime = 9999;
             }
@@ -261,21 +269,23 @@ public class GameManager {
         if (countdownTime == 9) {
             edu.mc.manager.TeamManager.TeamInfo winner = plugin.getTeamManager().getWinningTeam(plugin.getPlayerManager().getAlivePlayers());
             if (winner != null) {
-                Bukkit.broadcastMessage("§a§l大吉大利，今晚吃鸡！");
-                Bukkit.broadcastMessage("§e获胜队伍是: " + winner.chatColor + winner.name);
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.win_broadcast"));
+                java.util.Map<String, String> map = new java.util.HashMap<>();
+                map.put("team", winner.chatColor + winner.name);
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.winner", map));
                 for (java.util.UUID uuid : plugin.getTeamManager().getPlayersInTeam(winner.id)) {
                     Player p = Bukkit.getPlayer(uuid);
                     if (p != null && p.isOnline()) {
-                        plugin.sendTitle(p, "§6大吉大利", "§e今晚吃鸡", 10, 60, 10);
+                        plugin.sendTitle(p, plugin.getMessageManager().getMessage("game.win_title"), plugin.getMessageManager().getMessage("game.win_subtitle"), 10, 60, 10);
                     }
                 }
             } else {
-                Bukkit.broadcastMessage("§7游戏结束，没有胜者。");
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.no_winner"));
             }
         }
 
         if (countdownTime <= 0) {
-            Bukkit.broadcastMessage("§a游戏即将开始新的一局！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.restarting"));
 
             // 重置各个管理器
             plugin.getPlayerManager().reset();
@@ -387,7 +397,7 @@ public class GameManager {
                         plugin.getPacketMapManager().giveMap(p);
                         p.updateInventory();
                     }
-                    Bukkit.broadcastMessage("§a§l[系统] 已自动重置并刷新所有玩家的战术GPS雷达地图！");
+                    Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.radar_reset"));
                 }
             }, 30L);
         }
@@ -412,9 +422,9 @@ public class GameManager {
     public boolean togglePause() {
         this.isPaused = !this.isPaused;
         if (isPaused) {
-            Bukkit.broadcastMessage("§c[系统] 比赛倒计时已暂停！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.pause"));
         } else {
-            Bukkit.broadcastMessage("§a[系统] 比赛倒计时已恢复！");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.resume"));
         }
         return this.isPaused;
     }
@@ -445,18 +455,20 @@ public class GameManager {
             }
 
             this.countdownTime = GameConfig.STARTING_COUNTDOWN;
-            Bukkit.broadcastMessage("§a[系统] 管理员强制开启了比赛！正在生成航线...");
+            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.force_start"));
         }
     }
 
     public void skipPhase() {
         this.countdownTime = 0;
-        Bukkit.broadcastMessage("§a[系统] 管理员跳过了当前阶段的等待！");
+        Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.skip_wait"));
     }
 
     public void setCountdownTime(int seconds) {
         this.countdownTime = seconds;
-        Bukkit.broadcastMessage("§a[系统] 管理员调整当前阶段倒计时为: §e" + seconds + "§a秒！");
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        map.put("time", String.valueOf(seconds));
+        Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("system.set_time", map));
     }
 
     public boolean isPaused() {

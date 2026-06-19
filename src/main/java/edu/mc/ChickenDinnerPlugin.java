@@ -27,6 +27,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     private static String NMS_PACKAGE = null;
 
+    private edu.mc.manager.MessageManager messageManager;
+
     public static String getNmsPackage() {
         if (NMS_PACKAGE == null) {
             NMS_PACKAGE = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
@@ -39,6 +41,9 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        saveResource("messages.yml", false);
+        saveResource("teams.yml", false);
+        saveResource("scoreboard.yml", false);
         GameConfig.load(getConfig());
 
         org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
@@ -53,6 +58,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         mainWorld.setStorm(false);
         mainWorld.setDifficulty(org.bukkit.Difficulty.NORMAL);
 
+        this.messageManager = new edu.mc.manager.MessageManager(this);
         this.playerManager = new edu.mc.manager.PlayerManager();
         this.dataManager = new edu.mc.manager.DataManager(this);
         this.lootManager = new edu.mc.manager.LootManager(this);
@@ -60,6 +66,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         this.airdropManager = new edu.mc.manager.AirdropManager(this);
         this.scatterManager = new edu.mc.manager.ScatterManager();
         this.flightManager = new edu.mc.manager.FlightManager(this);
+        this.teamManager = new edu.mc.manager.TeamManager(this);
         this.scoreboardManager = new edu.mc.manager.ScoreboardManager(this);
         this.scoreboardManager.start();
         this.packetMapManager = new PacketMapManager(this);
@@ -68,7 +75,6 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
         this.worldManager = new edu.mc.manager.WorldManager(this);
         this.gameManager = new GameManager(this);
-        this.teamManager = new edu.mc.manager.TeamManager();
 
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.TeamListener(this), this);
@@ -94,6 +100,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     }
 
     // ==================== Managers ====================
+    public edu.mc.manager.MessageManager getMessageManager() {
+        return messageManager;
+    }
+
     public edu.mc.manager.PlayerManager getPlayerManager() {
         return playerManager;
     }

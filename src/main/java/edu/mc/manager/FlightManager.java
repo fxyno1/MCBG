@@ -64,7 +64,7 @@ public class FlightManager {
 
         ItemStack parachuteItem = new ItemStack(Material.FEATHER);
         ItemMeta meta = parachuteItem.getItemMeta();
-        meta.setDisplayName("§a§l[按 Shift 键 / 潜行跳伞]");
+        meta.setDisplayName(plugin.getMessageManager().getMessage("flight.item_name"));
         parachuteItem.setItemMeta(meta);
 
         for (UUID uuid : alivePlayers) {
@@ -105,7 +105,7 @@ public class FlightManager {
             }
         }
 
-        Bukkit.broadcastMessage("§e[航线] 飞机已起飞！请按 Shift 键（潜行）进行跳伞！");
+        Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("flight.takeoff"));
 
         // 延时 5 tick 后一次性刷新所有在线玩家的可见性，解决隐形 Bug
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -157,7 +157,7 @@ public class FlightManager {
                         
                         p.updateInventory();
                         p.setFallDistance(0f);
-                        p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");
+                        p.sendMessage(plugin.getMessageManager().getMessage("flight.jump"));
                     }
                 }
 
@@ -184,7 +184,7 @@ public class FlightManager {
 
                     if (isOnGround || (b1Hit && velocityNearZero) || b2Hit) {
                         paraIter.remove();
-                        p.sendMessage("§a[降落] 成功着陆！开始搜刮物资吧！");
+                        p.sendMessage(plugin.getMessageManager().getMessage("flight.landed"));
                         p.setFallDistance(0f);
                         p.setNoDamageTicks(60);
                         p.setWalkSpeed(0.2f);
@@ -247,7 +247,7 @@ public class FlightManager {
             
             p.updateInventory();
             p.setFallDistance(0f);
-            p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");
+            p.sendMessage(plugin.getMessageManager().getMessage("flight.jump"));
         }
     }
 

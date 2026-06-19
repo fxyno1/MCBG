@@ -21,7 +21,7 @@ public class HubCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("§c只有玩家可以执行此命令！");
+            sender.sendMessage(plugin.getMessageManager().getMessage("system.only_player"));
             return true;
         }
 
@@ -43,8 +43,10 @@ public class HubCommand implements CommandExecutor {
                 plugin.getPlayerManager().setSpectator(player);
 
                 // 广播玩家中途退赛的消息
-                Bukkit.broadcastMessage(
-                        "§c" + player.getName() + " §e退出了比赛！剩余存活人数: §a" + plugin.getPlayerManager().getAliveCount());
+                java.util.Map<String, String> map = new java.util.HashMap<>();
+                map.put("player", player.getName());
+                map.put("alive", String.valueOf(plugin.getPlayerManager().getAliveCount()));
+                Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("extra_game.eliminated_broadcast", map));
 
                 // 检查是否仅剩最后一人，是则结束比赛
                 if (plugin.getPlayerManager().getAliveCount() <= 1) {
@@ -69,7 +71,7 @@ public class HubCommand implements CommandExecutor {
 
         // 无论何种状态，最终传送玩家回大厅 (作为单服模式的主逻辑，或跨服模式的网络延迟兜底 fallback)
         player.teleport(lobbyLoc);
-        player.sendMessage("§a你已成功返回游戏大厅！");
+        player.sendMessage(plugin.getMessageManager().getMessage("player.hub_success"));
         return true;
     }
 }
