@@ -132,9 +132,9 @@ public class HealingManager {
 
         healingLocations.put(uuid, player.getLocation().clone());
 
-        // 赋予缓慢 III 效果
+        // 赋予极强的缓慢效果（Slowness V），允许跳跃但移动非常缓慢
         player.addPotionEffect(
-                new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOW, totalTicks + 20, 2));
+                new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOW, totalTicks + 20, 4));
 
         BukkitRunnable task = new BukkitRunnable() {
             int ticks = 0;
@@ -239,9 +239,9 @@ public class HealingManager {
 
         healingLocations.put(uuid, player.getLocation().clone());
 
-        // 赋予缓慢 III 效果
+        // 赋予极强的缓慢效果（Slowness V），允许跳跃但移动非常缓慢
         player.addPotionEffect(
-                new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOW, totalTicks + 20, 2));
+                new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SLOW, totalTicks + 20, 4));
 
         BukkitRunnable task = new BukkitRunnable() {
             int ticks = 0;

@@ -29,6 +29,8 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     private edu.mc.manager.MessageManager messageManager;
 
+    public static int MAP_RENDER_OFFSET = -1;
+
     public static String getNmsPackage() {
         if (NMS_PACKAGE == null) {
             NMS_PACKAGE = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
@@ -79,11 +81,85 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.TeamListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.SpectatorListener(this), this);
-        getCommand("chickendinner").setExecutor(new edu.mc.command.GameCommand(this)); // 注册游戏核心命令
+        edu.mc.command.GameCommand gameCommand = new edu.mc.command.GameCommand(this);
+        getCommand("chickendinner").setExecutor(gameCommand); // 注册游戏核心命令
+        getCommand("chickendinner").setTabCompleter(gameCommand);
         getCommand("hub").setExecutor(new edu.mc.command.HubCommand(this));
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
 
+        verifyLicense();
+
         getLogger().info("MCBG 1.8.9 \u6838\u5fc3\u5df2\u542f\u52a8\uff01");
+    }
+
+    private void verifyLicense() {
+        String licenseKey = getConfig().getString("license-key", "");
+        if (licenseKey.isEmpty()) {
+            startPiracyWarning("未找到授权密钥，请在 config.yml 中配置 license-key！");
+            return;
+        }
+
+        String decrypted = edu.mc.util.LicenseUtil.decrypt(licenseKey);
+        if (decrypted == null || !decrypted.contains("|") || decrypted.split("\\|").length < 3) {
+            startPiracyWarning("授权密钥无效或已被篡改！");
+            return;
+        }
+
+        String[] parts = decrypted.split("\\|");
+        String targetIp = parts[0];
+        if (!isIpLocal(targetIp)) {
+            startPiracyWarning("该插件未被授权，请联系原作者购买授权！");
+            return;
+        }
+
+        // 核心注入：将解密出的隐藏参数赋值给地图渲染偏移量
+        try {
+            MAP_RENDER_OFFSET = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            startPiracyWarning("授权数据已损坏！");
+            return;
+        }
+
+        getLogger().info("=========================================");
+        getLogger().info("  MCBG 插件授权验证通过！");
+        getLogger().info("=========================================");
+    }
+
+    private void startPiracyWarning(String reason) {
+        getLogger().severe("=========================================");
+        getLogger().severe("  [严重警告] 插件授权验证失败！");
+        getLogger().severe("=========================================");
+
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                getLogger().severe("This Is A Pirated Plugin!");
+            }
+        }.runTaskTimerAsynchronously(this, 0L, 200L); // 10秒 = 200 ticks
+    }
+
+    private boolean isIpLocal(String targetIp) {
+        if ("127.0.0.1".equals(targetIp) || "localhost".equals(targetIp))
+            return true;
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface
+                    .getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                java.net.NetworkInterface networkInterface = interfaces.nextElement();
+                if (!networkInterface.isUp())
+                    continue;
+                java.util.Enumeration<java.net.InetAddress> addresses = networkInterface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    java.net.InetAddress addr = addresses.nextElement();
+                    if (targetIp.equals(addr.getHostAddress())) {
+                        return true;
+                    }
+                }
+            }
+        } catch (java.net.SocketException e) {
+            getLogger().warning("检查本机 IP 时发生错误: " + e.getMessage());
+        }
+        return false;
     }
 
     @Override
@@ -199,11 +275,15 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         try {
             String nmsPackage = getNmsPackage();
             packetTitleCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle");
-            // 【修复】1.8.8 中 ChatSerializer 是 IChatBaseComponent 的内部类，使用 $ 进行查找以避免 ClassNotFoundException
-            chatSerializerCls = Class.forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent$ChatSerializer");
+            // 【修复】1.8.8 中 ChatSerializer 是 IChatBaseComponent 的内部类，使用 $ 进行查找以避免
+            // ClassNotFoundException
+            chatSerializerCls = Class
+                    .forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent$ChatSerializer");
             iChatBaseComponentCls = Class.forName("net.minecraft.server." + nmsPackage + ".IChatBaseComponent");
-            // 【修复】1.8.8 中 EnumTitleAction 是 PacketPlayOutTitle 的内部类，使用 $ 进行查找以避免 NoSuchFieldException
-            enumTitleActionCls = Class.forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle$EnumTitleAction");
+            // 【修复】1.8.8 中 EnumTitleAction 是 PacketPlayOutTitle 的内部类，使用 $ 进行查找以避免
+            // NoSuchFieldException
+            enumTitleActionCls = Class
+                    .forName("net.minecraft.server." + nmsPackage + ".PacketPlayOutTitle$EnumTitleAction");
             packetCls = Class.forName("net.minecraft.server." + nmsPackage + ".Packet");
 
             timeConstructor = packetTitleCls.getConstructor(int.class, int.class, int.class);

@@ -1,0 +1,121 @@
+teams:
+  1:
+    name: "红色队"
+    chat-color: "&c"
+    color-rgb: "255,0,0"
+  2:
+    name: "蓝色队"
+    chat-color: "&9"
+    color-rgb: "0,0,255"
+  3:
+    name: "绿色队"
+    chat-color: "&a"
+    color-rgb: "0,255,0"
+  4:
+    name: "黄色队"
+    chat-color: "&e"
+    color-rgb: "255,255,0"
+  5:
+    name: "橙色队"
+    chat-color: "&6"
+    color-rgb: "255,165,0"
+  6:
+    name: "紫色队"
+    chat-color: "&5"
+    color-rgb: "128,0,128"
+  7:
+    name: "粉色队"
+    chat-color: "&d"
+    color-rgb: "255,192,203"
+  8:
+    name: "青色队"
+    chat-color: "&b"
+    color-rgb: "0,255,255"
+  9:
+    name: "黑色队"
+    chat-color: "&0"
+    color-rgb: "0,0,0"
+  10:
+    name: "白色队"
+    chat-color: "&f"
+    color-rgb: "255,255,255"
+  11:
+    name: "灰色队"
+    chat-color: "&8"
+    color-rgb: "128,128,128"
+  12:
+    name: "浅灰队"
+    chat-color: "&7"
+    color-rgb: "192,192,192"
+  13:
+    name: "棕色队"
+    chat-color: "&6"
+    color-rgb: "139,69,19"
+  14:
+    name: "浅蓝队"
+    chat-color: "&b"
+    color-rgb: "173,216,230"
+  15:
+    name: "浅绿队"
+    chat-color: "&a"
+    color-rgb: "144,238,144"
+  16:
+    name: "品红队"
+    chat-color: "&d"
+    color-rgb: "255,0,255"
+  17:
+    name: "深红队"
+    chat-color: "&4"
+    color-rgb: "139,0,0"
+  18:
+    name: "海军蓝"
+    chat-color: "&1"
+    color-rgb: "0,0,128"
+  19:
+    name: "橄榄绿"
+    chat-color: "&2"
+    color-rgb: "128,128,0"
+  20:
+    name: "金色队"
+    chat-color: "&6"
+    color-rgb: "255,215,0"
+  21:
+    name: "银色队"
+    chat-color: "&7"
+    color-rgb: "192,192,192"
+  22:
+    name: "栗色队"
+    chat-color: "&4"
+    color-rgb: "128,0,0"
+  23:
+    name: "水鸭青"
+    chat-color: "&3"
+    color-rgb: "0,128,128"
+  24:
+    name: "珊瑚色"
+    chat-color: "&c"
+    color-rgb: "255,127,80"
+  25:
+    name: "鲑鱼粉"
+    chat-color: "&c"
+    color-rgb: "250,128,114"
+  26:
+    name: "靛蓝色"
+    chat-color: "&9"
+    color-rgb: "75,0,130"
+  27:
+    name: "紫罗兰"
+    chat-color: "&5"
+    color-rgb: "238,130,238"
+  28:
+    name: "卡其色"
+    chat-color: "&e"
+    color-rgb: "240,230,140"
+  29:
+    name: "兰花紫"
+    chat-color: "&d"
+    color-rgb: "218,112,214"
+  30:
+    name: "番茄红"
+    chat-color: "&c"
+    color-rgb: "255,99,71"

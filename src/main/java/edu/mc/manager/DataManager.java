@@ -67,7 +67,12 @@ public class DataManager {
         if (!file.exists()) {
             plugin.saveResource("items.yml", false);
         }
-        config = YamlConfiguration.loadConfiguration(file);
+        try {
+            config = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            e.printStackTrace();
+            config = new YamlConfiguration();
+        }
 
         // Loot
         lootChestMinItems = config.getInt("loot.chest.min-items", 3);

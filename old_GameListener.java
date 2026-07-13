@@ -48,9 +48,7 @@ public class GameListener implements Listener {
         plugin.getPacketMapManager().removeMap(player);
 
         if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
-            java.util.Map<String, String> map = new java.util.HashMap<>();
-            map.put("player", player.getName());
-            event.setJoinMessage(plugin.getMessageManager().getMessage("extra_game.join_message", map));
+            event.setJoinMessage("§7[管理员] " + player.getName() + " 进入了服务器。");
             return;
         }
 
@@ -74,13 +72,13 @@ public class GameListener implements Listener {
 
             org.bukkit.inventory.ItemStack paper = new org.bukkit.inventory.ItemStack(Material.PAPER);
             org.bukkit.inventory.meta.ItemMeta paperMeta = paper.getItemMeta();
-            paperMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.team_select"));
+            paperMeta.setDisplayName("§a选队");
             paper.setItemMeta(paperMeta);
             player.getInventory().setItem(0, paper);
 
             org.bukkit.inventory.ItemStack feather = new org.bukkit.inventory.ItemStack(Material.FEATHER);
             org.bukkit.inventory.meta.ItemMeta featherMeta = feather.getItemMeta();
-            featherMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.back_to_hub"));
+            featherMeta.setDisplayName("§c退出大厅");
             feather.setItemMeta(featherMeta);
             player.getInventory().setItem(8, feather);
 
@@ -88,10 +86,8 @@ public class GameListener implements Listener {
             player.updateInventory();
 
             plugin.getPlayerManager().addPlayer(player);
-            java.util.Map<String, String> map = new java.util.HashMap<>();
-            map.put("player", player.getName());
-            map.put("count", String.valueOf(plugin.getPlayerManager().getAliveCount()));
-            event.setJoinMessage(plugin.getMessageManager().getMessage("extra_game.join_player", map));
+            event.setJoinMessage(
+                    "§e" + player.getName() + " §a加入了游戏(" + plugin.getPlayerManager().getAliveCount() + " /30)");
 
             // 1. 立即执行传送
             player.teleport(lobbyLoc);
@@ -149,13 +145,13 @@ public class GameListener implements Listener {
                         plugin.getPacketMapManager().removeMap(player);
                         plugin.getPacketMapManager().giveMap(player);
                         player.updateInventory();
-                        player.sendMessage(plugin.getMessageManager().getMessage("radar.reconnect"));
+                        player.sendMessage("§a§l[雷达系统] 战术雷达卫星重连，数据已重新初始化！");
                     }
                 }, 15L);
             } else {
                 plugin.getPlayerManager().setSpectator(player);
                 event.setJoinMessage(null);
-                player.sendMessage(plugin.getMessageManager().getMessage("player.already_started"));
+                player.sendMessage("§c游戏已经开始，你现在处于旁观者模式。");
                 teleportSpectatorToTarget(player);
             }
         }
@@ -176,9 +172,7 @@ public class GameListener implements Listener {
                         : new Location(player.getWorld(), 0.0, 100.0, 16.0);
                 player.teleport(loc);
                 if (target != null) {
-                    java.util.Map<String, String> map = new java.util.HashMap<>();
-                    map.put("player", target.getName());
-                    player.sendMessage(plugin.getMessageManager().getMessage("spectator.auto_switch", map));
+                    player.sendMessage("§a已自动为您切换至最近的存活玩家 " + target.getName() + " 进行观战！");
                 }
             }
         }, 5L);
@@ -226,9 +220,7 @@ public class GameListener implements Listener {
             player.getInventory().setArmorContents(null);
         }
 
-        java.util.Map<String, String> map = new java.util.HashMap<>();
-        map.put("player", player.getName());
-        event.setQuitMessage(plugin.getMessageManager().getMessage("extra_game.quit_message", map));
+        event.setQuitMessage("§e" + player.getName() + " §c退出了游戏");
         if (state == GameState.INGAME || state == GameState.FLIGHT) {
             checkWinCondition();
         }
@@ -303,10 +295,8 @@ public class GameListener implements Listener {
             if (!plugin.getPlayerManager().getSpectators().contains(player.getUniqueId())) {
                 plugin.getPlayerManager().getSpectators().add(player.getUniqueId());
             }
-            java.util.Map<String, String> map = new java.util.HashMap<>();
-            map.put("player", player.getName());
-            map.put("alive", String.valueOf(plugin.getPlayerManager().getAliveCount()));
-            Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("extra_game.eliminated_broadcast", map));
+            Bukkit.broadcastMessage(
+                    "§c" + player.getName() + " §e被淘汰了！剩余存活: §a" + plugin.getPlayerManager().getAliveCount());
 
             checkWinCondition();
         }
@@ -336,39 +326,45 @@ public class GameListener implements Listener {
                         player.getInventory().clear();
                         player.getInventory().setArmorContents(null);
                         plugin.getPacketMapManager().removeMap(player);
-                        player.sendMessage(plugin.getMessageManager().getMessage("player.eliminated"));
+                        player.sendMessage("§c你已被淘汰！现在是观察者模式。");
 
-                        org.bukkit.inventory.ItemStack eye = new org.bukkit.inventory.ItemStack(Material.EYE_OF_ENDER);
-                        org.bukkit.inventory.meta.ItemMeta eyeMeta = eye.getItemMeta();
-                        eyeMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.spectate_player"));
-                        eye.setItemMeta(eyeMeta);
-                        player.getInventory().setItem(0, eye);
-
-                        org.bukkit.inventory.ItemStack cart = new org.bukkit.inventory.ItemStack(Material.STORAGE_MINECART);
-                        org.bukkit.inventory.meta.ItemMeta cartMeta = cart.getItemMeta();
-                        cartMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.play_again"));
-                        cartMeta.setLore(java.util.Arrays.asList(plugin.getMessageManager().getMessage("gui.play_again_lore")));
-                        cart.setItemMeta(cartMeta);
-                        player.getInventory().setItem(7, cart);
+                        org.bukkit.inventory.ItemStack compass = new org.bukkit.inventory.ItemStack(Material.COMPASS);
+                        org.bukkit.inventory.meta.ItemMeta compassMeta = compass.getItemMeta();
+                        compassMeta.setDisplayName("§a观战列表");
+                        compass.setItemMeta(compassMeta);
+                        player.getInventory().setItem(0, compass);
 
                         org.bukkit.inventory.ItemStack bed = new org.bukkit.inventory.ItemStack(Material.BED);
                         org.bukkit.inventory.meta.ItemMeta bedMeta = bed.getItemMeta();
-                        bedMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.back_to_hub"));
+                        bedMeta.setDisplayName("§c退出到大厅");
                         bed.setItemMeta(bedMeta);
                         player.getInventory().setItem(8, bed);
 
-                        // 传送到自己的死亡位置
-                        player.teleport(deathLoc.clone().add(0, 1.5, 0));
+                        player.updateInventory();
 
-                        // 【修复】必须在 teleport 之后稍等一下再打开死亡菜单，否则传送包会导致打开的菜单立刻被客户端强制关闭！
-                        Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
-                            @Override
-                            public void run() {
-                                if (player.isOnline()) {
-                                    edu.mc.listener.SpectatorListener.openDeathMenu(player);
+                        edu.mc.listener.SpectatorListener.openDeathMenu(player);
+
+                        // 寻找最近的存活玩家并传送过去观战
+                        Player targetSpectate = null;
+                        double minDistance = Double.MAX_VALUE;
+                        for (java.util.UUID aliveId : plugin.getPlayerManager().getAlivePlayers()) {
+                            Player alive = Bukkit.getPlayer(aliveId);
+                            if (alive != null && alive.isOnline()) {
+                                if (!alive.getWorld().equals(deathLoc.getWorld())) {
+                                    targetSpectate = alive;
+                                    break;
+                                }
+                                double dist = alive.getLocation().distanceSquared(deathLoc);
+                                if (dist < minDistance) {
+                                    minDistance = dist;
+                                    targetSpectate = alive;
                                 }
                             }
-                        }, 2L);
+                        }
+                        if (targetSpectate != null) {
+                            player.teleport(targetSpectate.getLocation().clone().add(0, 3.5, 0));
+                            player.sendMessage("§a已自动为您切换至最近的存活玩家 " + targetSpectate.getName() + " 进行观战！");
+                        }
                     }
                 }
             }
@@ -438,7 +434,7 @@ public class GameListener implements Listener {
                 
                 if (spawnTime != null) {
                     if (System.currentTimeMillis() - spawnTime < 3000) {
-                        event.getPlayer().sendMessage(plugin.getMessageManager().getMessage("player.chest_protected"));
+                        event.getPlayer().sendMessage("§c[保护] 该遗物箱刚刚生成，3秒内无法被破坏！");
                         event.setCancelled(true);
                         return;
                     } else {
@@ -724,7 +720,7 @@ public class GameListener implements Listener {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealing(player, false);
                     } else {
-                        plugin.sendActionBar(player, plugin.getMessageManager().getMessage("extra_game.health_full"));
+                        plugin.sendActionBar(player, "§c你的生命值已满！");
                     }
                     // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放吃东西的动画
                     event.setCancelled(true);
@@ -735,7 +731,7 @@ public class GameListener implements Listener {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealing(player, true);
                     } else {
-                        plugin.sendActionBar(player, plugin.getMessageManager().getMessage("extra_game.health_full"));
+                        plugin.sendActionBar(player, "§c你的生命值已满！");
                     }
                     // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放吃东西的动画
                     event.setCancelled(true);
@@ -746,7 +742,7 @@ public class GameListener implements Listener {
                         plugin.getHealingManager().updateLastInteractTime(player, System.currentTimeMillis());
                         plugin.getHealingManager().startHealingMedicalBox(player);
                     } else {
-                        plugin.sendActionBar(player, plugin.getMessageManager().getMessage("extra_game.health_hunger_full"));
+                        plugin.sendActionBar(player, "§c你的生命值和饥饿值均已满！");
                     }
                     // 【修复】取消 interact 事件的同时必须同步刷新背包，防止客户端视觉上播放摆放方块的动画
                     event.setCancelled(true);
@@ -826,7 +822,7 @@ public class GameListener implements Listener {
             // 处理点击遗物箱告示牌的逻辑
             if (block != null && (block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST)) {
                 org.bukkit.block.Sign sign = (org.bukkit.block.Sign) block.getState();
-                if (plugin.getMessageManager().getMessage("sign.tombstone").equals(sign.getLine(0))) {
+                if ("§c[遗物箱]".equals(sign.getLine(0))) {
                     org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
                     Block attached = block.getRelative(signData.getAttachedFace());
                     if (attached.getType() == Material.CHEST || attached.getType() == Material.TRAPPED_CHEST) {
@@ -867,13 +863,6 @@ public class GameListener implements Listener {
                 if (!plugin.getLootManager().isChestOpened(loc)) {
                     plugin.getLootManager().populateChest(inv);
                     plugin.getLootManager().markChestOpened(loc);
-
-                    // 放置四周的“已被打开”告示牌
-                    org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH,
-                            org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST, org.bukkit.block.BlockFace.EAST };
-                    for (org.bukkit.block.BlockFace face : faces) {
-                        placeOpenedChestSign(block.getRelative(face), face);
-                    }
                 }
             }
         }
@@ -971,30 +960,9 @@ public class GameListener implements Listener {
                 org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
                 signData.setFacingDirection(face);
                 sign.setData(signData);
-                sign.setLine(0, plugin.getMessageManager().getMessage("sign.tombstone"));
+                sign.setLine(0, "§c[遗物箱]");
                 sign.setLine(1, playerName);
-                sign.setLine(2, plugin.getMessageManager().getMessage("sign.tombstone_dead"));
-                sign.update(true, false);
-            }
-        }
-    }
-
-    private void placeOpenedChestSign(Block block, org.bukkit.block.BlockFace face) {
-        if (block.getType() == Material.AIR || block.getType() == Material.WATER
-                || block.getType() == Material.STATIONARY_WATER
-                || block.getType() == Material.LONG_GRASS || block.getType() == Material.SNOW
-                || block.getType() == Material.DEAD_BUSH
-                || block.getType() == Material.YELLOW_FLOWER || block.getType() == Material.RED_ROSE) {
-            block.setType(Material.WALL_SIGN);
-            org.bukkit.block.BlockState state = block.getState();
-            if (state instanceof org.bukkit.block.Sign) {
-                org.bukkit.block.Sign sign = (org.bukkit.block.Sign) state;
-                org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
-                signData.setFacingDirection(face);
-                sign.setData(signData);
-                sign.setLine(0, "§e[系统]");
-                sign.setLine(1, "§f该箱子");
-                sign.setLine(2, "§c已被打开");
+                sign.setLine(2, "§8(已阵亡)");
                 sign.update(true, false);
             }
         }

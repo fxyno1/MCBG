@@ -52,9 +52,14 @@ public final class GameConfig {
     public static double FLIGHT_ALTITUDE = 150.0;
 
     /**
-     * 飞机飞越全程所需的 Tick 数。
-     * 飞行速度 = (终点 - 起点) / FLIGHT_DURATION_TICKS
-     * 默认 600 ticks = 30 秒（20 ticks/秒）
+     * 决定飞机速度的除数（越小飞得越快，原版为 150.0）
+     * 飞行速度 = (终点 - 起点) / FLIGHT_SPEED_DIVISOR
+     */
+    public static double FLIGHT_SPEED_DIVISOR = 150.0;
+
+    /**
+     * 飞机飞越全程的强制超时 Tick 数。
+     * 超过此时间后强制所有人跳伞（默认 600 ticks = 30 秒）
      */
     public static int FLIGHT_DURATION_TICKS = 600;
 
@@ -63,20 +68,36 @@ public final class GameConfig {
      * ⚠ 必须与 FlightManager 中 runTaskTimer 的 period 参数保持一致！
      * 同时 ticks 计数器每次 += FLIGHT_TASK_INTERVAL_TICKS。
      */
-    public static int FLIGHT_TASK_INTERVAL_TICKS = 2;
+    public static int FLIGHT_TASK_INTERVAL_TICKS = 4;
 
     /** 飞行阶段结束后（全部落地）进入正式游戏前的等待时间（秒） */
     public static int FLIGHT_PHASE_COUNTDOWN = 60;
+
+    // =====================================================
+    // 【飞机与跳伞快捷栏槽位】
+    // =====================================================
+
+    /** 雷达地图在飞机上以及跳伞时的快捷栏槽位（0-8） */
+    public static int FLIGHT_MAP_SLOT = 0;
+
+    /** 跳伞羽毛在飞机上的快捷栏槽位（0-8） */
+    public static int FLIGHT_PARACHUTE_SLOT = 4;
+
+    /** 队伍匹配模式：单排、双排、四排 */
+    public static int TEAM_MAX_PLAYERS_PER_TEAM = 4;
+
+    /** 组队状态下，用来展示队伍颜色的帽子，放在快捷栏的哪个槽位（0-8） */
+    public static int TEAM_HAT_INVENTORY_SLOT = 7;
 
     // =====================================================
     // 【跳伞 & 滑翔阶段】
     // =====================================================
 
     /** 开伞后每帧向下的速度（负值 = 向下）。值越小下落越慢，滞空时间越长 */
-    public static double PARACHUTE_FALL_SPEED = -0.15;
+    public static double PARACHUTE_FALL_SPEED = -0.2;
 
     /** 开伞后水平滑翔速度倍率（应用于玩家朝向的 X/Z 分量） */
-    public static double PARACHUTE_GLIDE_MULTIPLIER = 0.6;
+    public static double PARACHUTE_GLIDE_MULTIPLIER = 1.5;
 
     // =====================================================
     // 【正式游戏阶段（缩圈）】
@@ -166,9 +187,16 @@ public final class GameConfig {
 
         FLIGHT_RADIUS = config.getDouble("flight.radius", FLIGHT_RADIUS);
         FLIGHT_ALTITUDE = config.getDouble("flight.altitude", FLIGHT_ALTITUDE);
+        FLIGHT_SPEED_DIVISOR = config.getDouble("flight.speed-divisor", FLIGHT_SPEED_DIVISOR);
         FLIGHT_DURATION_TICKS = config.getInt("flight.duration-ticks", FLIGHT_DURATION_TICKS);
         FLIGHT_TASK_INTERVAL_TICKS = config.getInt("flight.task-interval-ticks", FLIGHT_TASK_INTERVAL_TICKS);
         FLIGHT_PHASE_COUNTDOWN = config.getInt("flight.phase-countdown", FLIGHT_PHASE_COUNTDOWN);
+        
+        FLIGHT_MAP_SLOT = config.getInt("flight.map-slot", FLIGHT_MAP_SLOT);
+        FLIGHT_PARACHUTE_SLOT = config.getInt("flight.parachute-slot", FLIGHT_PARACHUTE_SLOT);
+        
+        TEAM_MAX_PLAYERS_PER_TEAM = config.getInt("team.max-players-per-team", TEAM_MAX_PLAYERS_PER_TEAM);
+        TEAM_HAT_INVENTORY_SLOT = config.getInt("team.hat-inventory-slot", TEAM_HAT_INVENTORY_SLOT);
 
         PARACHUTE_FALL_SPEED = config.getDouble("parachute.fall-speed", PARACHUTE_FALL_SPEED);
         PARACHUTE_GLIDE_MULTIPLIER = config.getDouble("parachute.glide-multiplier", PARACHUTE_GLIDE_MULTIPLIER);

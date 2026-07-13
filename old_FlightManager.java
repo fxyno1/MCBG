@@ -59,16 +59,12 @@ public class FlightManager {
             prepareFlightPath();
         }
 
-        if (startPoint != null && !startPoint.getChunk().isLoaded()) {
-            startPoint.getChunk().load(true);
-        }
-
         playersOnPlane.clear();
         parachutingPlayers.clear();
 
         ItemStack parachuteItem = new ItemStack(Material.FEATHER);
         ItemMeta meta = parachuteItem.getItemMeta();
-        meta.setDisplayName(plugin.getMessageManager().getMessage("flight.item_name"));
+        meta.setDisplayName("§a§l[按 Shift 键 / 潜行跳伞]");
         parachuteItem.setItemMeta(meta);
 
         for (UUID uuid : alivePlayers) {
@@ -85,16 +81,16 @@ public class FlightManager {
                 p.getInventory().clear();
                 plugin.getPacketMapManager().removeMap(p);
                 plugin.getPacketMapManager().giveMap(p);
-                // 默认会把地图放在第 5 格(slot 4)，根据配置调整位置
-                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(4);
+                // 重置雷达地图到第5格(slot 4)
+                org.bukkit.inventory.ItemStack mapItem = p.getInventory().getItem(0);
                 if (mapItem != null && mapItem.getType() == Material.MAP) {
-                    p.getInventory().setItem(4, null); // 拿出来
-                    p.getInventory().setItem(GameConfig.FLIGHT_MAP_SLOT, mapItem); // 放到配置的地图槽位
+                    p.getInventory().setItem(0, null);
+                    p.getInventory().setItem(4, mapItem);
                 }
                 
-                p.getInventory().setItem(GameConfig.FLIGHT_PARACHUTE_SLOT, parachuteItem); // 放到配置的跳伞羽毛槽位
-                p.getInventory().setHeldItemSlot(GameConfig.FLIGHT_MAP_SLOT); // 默认手持雷达地图槽位
-                p.updateInventory();
+                // 将跳伞羽毛放到最后一格
+                p.getInventory().setItem(8, parachuteItem);
+                p.getInventory().setHeldItemSlot(4); // 默认手持中间的雷达地图
                 
                 // 确保防具（彩色皮革）仍然穿着
                 Integer teamId = plugin.getTeamManager().getTeam(uuid);
@@ -109,7 +105,7 @@ public class FlightManager {
             }
         }
 
-        Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("flight.takeoff"));
+        Bukkit.broadcastMessage("§e[航线] 飞机已起飞！请按 Shift 键（潜行）进行跳伞！");
 
         // 延时 5 tick 后一次性刷新所有在线玩家的可见性，解决隐形 Bug
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -142,18 +138,7 @@ public class FlightManager {
                         continue;
                     }
                     if (planeActive) {
-                        // 【修复】强力检测：如果玩家因为 Bukkit 的跨世界传送 bug 没有成功传送到 game_1，强行再次传送！
-                        if (!p.getWorld().getName().equals("game_1") && startPoint != null) {
-                            Location currentPlaneLoc = startPoint.clone().add(flightDir.clone().multiply(ticks));
-                            p.teleport(currentPlaneLoc);
-                            continue; // 跳过这一 tick 的速度施加，防止客户端/反作弊判定移动异常而拉回原世界
-                        }
-                        try {
-                            p.setVelocity(flightDir);
-                        } catch (IllegalArgumentException e) {
-                            // 防御性处理：如果速度过快触发 Bukkit 的 4.0 限制，改用安全的 teleport 平滑移动
-                            p.teleport(p.getLocation().add(flightDir));
-                        }
+                        p.setVelocity(flightDir);
                     } else {
                         planeIter.remove();
                         parachutingPlayers.add(uuid);
@@ -161,9 +146,9 @@ public class FlightManager {
                         p.setAllowFlight(false);
                         p.setWalkSpeed(0.2f);
                         p.setFlySpeed(0.1f);
-                        p.getInventory().setItem(GameConfig.FLIGHT_PARACHUTE_SLOT, null); // 移除跳伞羽毛
-                        p.getInventory().setItem(GameConfig.TEAM_HAT_INVENTORY_SLOT, null); // 移除物品栏里的队伍颜色帽子
-                        p.getInventory().setHeldItemSlot(GameConfig.FLIGHT_MAP_SLOT);
+                        p.getInventory().setItem(8, null); // 移除跳伞羽毛
+                        p.getInventory().setItem(7, null); // 移除物品栏里的队伍颜色帽子
+                        p.getInventory().setHeldItemSlot(4);
                         
                         // 跳伞时隐藏彩色衣服，但保留头上的帽子
                         p.getInventory().setChestplate(null);
@@ -172,7 +157,7 @@ public class FlightManager {
                         
                         p.updateInventory();
                         p.setFallDistance(0f);
-                        p.sendMessage(plugin.getMessageManager().getMessage("flight.jump"));
+                        p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");
                     }
                 }
 
@@ -199,7 +184,7 @@ public class FlightManager {
 
                     if (isOnGround || (b1Hit && velocityNearZero) || b2Hit) {
                         paraIter.remove();
-                        p.sendMessage(plugin.getMessageManager().getMessage("flight.landed"));
+                        p.sendMessage("§a[降落] 成功着陆！开始搜刮物资吧！");
                         p.setFallDistance(0f);
                         p.setNoDamageTicks(60);
                         p.setWalkSpeed(0.2f);
@@ -225,16 +210,12 @@ public class FlightManager {
                             }
                         }, 2L);
                     } else {
-                        // 根据 config.yml 中设定的频率更新速度
+                        // 每 2 tick 更新一次速度（更高频率使旁观者看到的人物动作更流畅）
                         Vector look = p.getLocation().getDirection();
                         look.setY(GameConfig.PARACHUTE_FALL_SPEED);
                         look.setX(look.getX() * GameConfig.PARACHUTE_GLIDE_MULTIPLIER);
                         look.setZ(look.getZ() * GameConfig.PARACHUTE_GLIDE_MULTIPLIER);
-                        try {
-                            p.setVelocity(look);
-                        } catch (IllegalArgumentException e) {
-                            p.teleport(p.getLocation().add(look));
-                        }
+                        p.setVelocity(look);
                         p.setFallDistance(0f);
                     }
                 }
@@ -245,8 +226,7 @@ public class FlightManager {
                 }
             }
         };
-        // 【修复】将航线任务延迟 20 ticks (1秒) 执行，给客户端充分时间加载 game_1 区块，避免由于立刻施加 Velocity 导致跨世界传送被服务端撤回拉回！
-        flightTask.runTaskTimer(plugin, 20L, GameConfig.FLIGHT_TASK_INTERVAL_TICKS);
+        flightTask.runTaskTimer(plugin, 1L, GameConfig.FLIGHT_TASK_INTERVAL_TICKS);
     }
 
     public void forceJump(Player p) {
@@ -256,9 +236,9 @@ public class FlightManager {
             p.setAllowFlight(false);
             p.setWalkSpeed(0.2f);
             p.setFlySpeed(0.1f);
-            p.getInventory().setItem(GameConfig.FLIGHT_PARACHUTE_SLOT, null); // 仅移除跳伞羽毛
-            p.getInventory().setItem(GameConfig.TEAM_HAT_INVENTORY_SLOT, null); // 移除物品栏里的队伍颜色帽子
-            p.getInventory().setHeldItemSlot(GameConfig.FLIGHT_MAP_SLOT); // 重新切换到雷达地图槽位，向玩家展示 GPS 地图
+            p.getInventory().setItem(8, null); // 仅移除最后一格的跳伞羽毛
+            p.getInventory().setItem(7, null); // 移除物品栏里的队伍颜色帽子
+            p.getInventory().setHeldItemSlot(4); // 重新切换到中间槽，向玩家展示 GPS 地图
             
             // 跳伞时隐藏彩色衣服，但保留头上的帽子
             p.getInventory().setChestplate(null);
@@ -267,7 +247,7 @@ public class FlightManager {
             
             p.updateInventory();
             p.setFallDistance(0f);
-            p.sendMessage(plugin.getMessageManager().getMessage("flight.jump"));
+            p.sendMessage("§a[跳伞] 离开机舱！移动鼠标控制滑翔方向！");
         }
     }
 

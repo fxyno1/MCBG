@@ -25,7 +25,12 @@ public class MessageManager {
         if (!file.exists()) {
             plugin.saveResource("messages.yml", false);
         }
-        config = YamlConfiguration.loadConfiguration(file);
+        try {
+            config = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            e.printStackTrace();
+            config = new YamlConfiguration();
+        }
     }
 
     public String getMessage(String path) {

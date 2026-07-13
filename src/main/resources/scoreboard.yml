@@ -1,0 +1,24 @@
+title: "&e&l代号:吃鸡"
+
+lines:
+  mode:
+    solo: "&f模式:  &a单人"
+    team: "&f模式:  &b{team_size}人小队"
+  wait: "&f玩家:  &a{players}/{max_players}"
+  status:
+    waiting: "&f状态:  &a可加入..."
+    started: "&a游戏进行中"
+  
+  alive: "&f存活玩家: &a{alive}"
+  team_alive: "&f队伍存活: &b{teams}"
+  kills: "&f击杀数: &a{kills}"
+  
+  zone:
+    shrinking: "&f缩圈时间: &a收缩中"
+    wait: "&f缩圈时间: &a{time}"
+    phase: "&7第 {phase} 阶段"
+    safe: "&a安全区已刷新"
+  
+  lobby_extra: "&a游戏即将开始"
+  footer:
+    - "  &e✿&e花雨庭&e✿"

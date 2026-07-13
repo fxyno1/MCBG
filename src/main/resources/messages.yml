@@ -1,0 +1,120 @@
+system:
+  prefix: "&8[&e系统&8] &r"
+  error: "&c发生错误，请联系管理员。"
+  no_permission: "&c你没有权限执行此命令！"
+  only_player: "&c只有玩家可以执行此命令！"
+  radar_reset: "&a&l[系统] 已自动重置并刷新所有玩家的战术GPS雷达地图！"
+  pause: "&c[系统] 比赛倒计时已暂停！"
+  resume: "&a[系统] 比赛倒计时已恢复！"
+  force_start: "&a[系统] 管理员强制开启了比赛！正在生成航线..."
+  skip_wait: "&a[系统] 管理员跳过了当前阶段的等待！"
+  set_time: "&a[系统] 管理员调整当前阶段倒计时为: &e{time}&a秒！"
+
+game:
+  broadcast_prefix: "&a[游戏广播] &r"
+  countdown: "&e[游戏广播] 距离比赛开始还剩 &c{time} &e秒！"
+  countdown_short: "&a[游戏广播] 人数已达 30 人，倒计时缩短至 15 秒！"
+  matching: "&a[游戏广播] 正在匹配航线... 准备起飞: &6{time}"
+  start: "&e[游戏广播] 比赛正式开始！你有 1 分钟的安全时间搜刮物资，毒圈随后开始收缩！"
+  landed: "&e[安全区] 飞机航线已结束，全部玩家已安全落地！"
+  zone_first_radar: "&a&l[雷达系统] 第一波安全区（白色区域）已在您的 GPS 雷达中公布！"
+  zone_first_wait: "&e[安全区] 毒圈将在 {time} 秒后开始向白圈进行首次收缩！"
+  winner: "&e获胜队伍是: {team}"
+  no_winner: "&7游戏结束，没有胜者。"
+  restarting: "&a游戏即将开始新的一局！"
+  win_title: "&6大吉大利"
+  win_subtitle: "&e今晚吃鸡"
+  win_broadcast: "&a&l大吉大利，今晚吃鸡！"
+  title_countdown: "&c{time}"
+  title_countdown_sub: "&e准备开战!"
+
+zone:
+  prefix: "&e[安全区] &r"
+  radar_online: "&a[安全区] 战术雷达GPS已上线。落地后将公布第一波安全区！"
+  shrink_done: "&a[安全区] 毒圈收缩完毕。下一波安全区（白色区域）已在GPS雷达中标出！"
+  shrink_start: "&c[安全区] 第{phase}级毒圈开始向白圈位置收缩！"
+  new_zone: "&e[安全区] 新的安全区已在雷达地图上标记，毒圈将在一段时间后开始收缩！"
+  warn_1min: "&e[安全区] 距离毒圈收缩还有 &c1分钟 &e！"
+  warn_30s: "&c[警告] 距离毒圈收缩还有 &e30秒 &c！"
+  shrinking: "&c[安全区] 毒圈开始收缩，请尽快进入白圈！"
+  title_shrink_start: "&c边界开始收缩"
+  title_shrink_start_sub: "&e请尽快前往白圈安全区！"
+  title_new_zone: "&a新安全区已刷新"
+  title_new_zone_sub: "&e请查看战术雷达！"
+  title_warn_1min: "&c毒圈逼近"
+  title_warn_1min_sub: "&e距离缩圈还有 1 分钟"
+  title_warn_30s: "&c危险警告"
+  title_warn_30s_sub: "&e毒圈将在 30 秒后收缩"
+  title_shrinking: "&4毒圈开始收缩"
+  title_shrinking_sub: "&c快跑！"
+
+flight:
+  item_name: "&a&l[按 Shift 键 / 潜行跳伞]"
+  takeoff: "&e[航线] 飞机已起飞！请按 Shift 键（潜行）进行跳伞！"
+  jump: "&a[跳伞] 离开机舱！移动鼠标控制滑翔方向！"
+  landed: "&a[降落] 成功着陆！开始搜刮物资吧！"
+
+team:
+  full: "&c该队伍已满！"
+  already_in: "&c你已经在这个队伍中了！"
+  join_success: "&a你已成功加入 {team}&a！"
+  auto_assign: "&a[系统] 游戏即将开始，已为您自动分配到 {team}"
+  auto_assign_fail: "&c队伍已满，无法分配队伍！"
+
+radar:
+  name: "&a&l[战术 GPS 雷达]"
+  reconnect: "&a&l[雷达系统] 战术雷达卫星重连，数据已重新初始化！"
+  lore:
+    - "&7拿在手上即可生效"
+    - "&7- &c飞行航线（红色虚线）"
+    - "&7- &f下级安全圈范围（白色虚线）"
+    - "&7- &9实时毒圈边缘（蓝色实线）"
+    - "&7- &a你的实时坐标与视角朝向"
+    - "&7- &2队友实时位置（绿色指针）"
+
+airdrop:
+  broadcast: "&e[空投] &a一架飞机已投下空投补给箱！坐标: X:{x} Z:{z}"
+  title: "&e★ 空投补给降临 ★"
+  subtitle: "&a坐标: X:{x} Z:{z}"
+
+items:
+  grenade: "&c手雷"
+  molotov: "&6燃烧弹"
+
+player:
+  eliminated: "&c你已被淘汰！现在是旁观者模式。"
+  invincible_drop: "&a你已安全着陆，拥有 3 秒无敌时间，寻找物资准备战斗吧！"
+  chest_protected: "&c[保护] 该遗物箱刚刚生成，3秒内无法被破坏！"
+  hub_success: "&a你已成功返回游戏大厅！"
+  already_started: "&c游戏已经开始，你现在处于旁观者模式。"
+
+spectator:
+  teleport_to: "&a已传送至 {player} 身边观战！"
+  target_offline: "&c该玩家不在线或已淘汰！"
+  auto_switch: "&a已自动为您切换至最近的存活玩家 {player} 进行观战！"
+
+gui:
+  team_select: "&a选队"
+  team_full: "&c队伍已满"
+  team_join: "&a点击加入"
+  team_count: "&7当前人数: &e{count}&7/&e{max}"
+  spectate_player: "&a继续观战"
+  play_again: "&e再来一局"
+  play_again_lore: "&7(暂不可用)"
+  back_to_hub: "&c退出大厅"
+  back_to_hub_bed: "&c退出到大厅"
+  spectator_list: "&a观战列表"
+  close: "&c关闭"
+  eliminated: "&c你已被淘汰"
+
+sign:
+  tombstone: "&c[遗物箱]"
+  tombstone_dead: "&8(已阵亡)"
+
+extra_game:
+  join_message: "&7[管理员] {player} 进入了服务器。"
+  join_player: "&e{player} &a加入了游戏({count} /30)"
+  quit_message: "&e{player} &c退出了游戏"
+  eliminated_broadcast: "&c{player} &e被淘汰了！剩余存活: &a{alive}"
+  health_full: "&c你的生命值已满！"
+  health_hunger_full: "&c你的生命值和饥饿值均已满！"

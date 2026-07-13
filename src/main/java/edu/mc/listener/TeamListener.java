@@ -27,7 +27,8 @@ public class TeamListener implements Listener {
         Inventory inv = Bukkit.createInventory(null, 54, plugin.getMessageManager().getMessage("gui.team_select"));
         TeamManager tm = plugin.getTeamManager();
         
-        for (int i = 1; i <= TeamManager.MAX_TEAMS; i++) {
+        int index = 0;
+        for (Integer i : tm.getAllTeamInfos().keySet()) {
             TeamManager.TeamInfo info = tm.getTeamInfo(i);
             if (info != null) {
                 ItemStack item = TeamManager.createColoredLeatherArmor(Material.LEATHER_HELMET, info.armorColor, info.chatColor + info.name);
@@ -37,9 +38,9 @@ public class TeamListener implements Listener {
                     int size = tm.getPlayersInTeam(i).size();
                     java.util.Map<String, String> countMap = new java.util.HashMap<>();
                     countMap.put("count", String.valueOf(size));
-                    countMap.put("max", String.valueOf(TeamManager.MAX_PLAYERS_PER_TEAM));
+                    countMap.put("max", String.valueOf(edu.mc.GameConfig.TEAM_MAX_PLAYERS_PER_TEAM));
                     lore.add(plugin.getMessageManager().getMessage("gui.team_count", countMap));
-                    if (size >= TeamManager.MAX_PLAYERS_PER_TEAM) {
+                    if (size >= edu.mc.GameConfig.TEAM_MAX_PLAYERS_PER_TEAM) {
                         lore.add(plugin.getMessageManager().getMessage("gui.team_full"));
                     } else {
                         lore.add(plugin.getMessageManager().getMessage("gui.team_join"));
@@ -49,7 +50,8 @@ public class TeamListener implements Listener {
                 }
                 // Slots: 0-29. Maybe distribute nicely, but 0-29 is fine.
                 // 30 teams fit in 54 slots
-                inv.setItem(i - 1, item);
+                inv.setItem(index, item);
+                index++;
             }
         }
         player.openInventory(inv);
@@ -67,13 +69,13 @@ public class TeamListener implements Listener {
             if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
                 if (item != null && item.getType() == Material.PAPER) {
                     ItemMeta meta = item.getItemMeta();
-                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("选队")) {
+                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().equals(plugin.getMessageManager().getMessage("gui.team_select"))) {
                         openTeamGUI(player);
                         event.setCancelled(true);
                     }
                 } else if (item != null && item.getType() == Material.FEATHER) {
                     ItemMeta meta = item.getItemMeta();
-                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("退出大厅")) {
+                    if (meta != null && meta.hasDisplayName() && meta.getDisplayName().equals(plugin.getMessageManager().getMessage("gui.back_to_hub"))) {
                         player.performCommand("hub");
                         event.setCancelled(true);
                     }
@@ -110,9 +112,17 @@ public class TeamListener implements Listener {
             ItemStack clickedItem = event.getCurrentItem();
             if (clickedItem != null && clickedItem.getType() == Material.LEATHER_HELMET) {
                 int slot = event.getRawSlot();
-                if (slot >= 0 && slot < TeamManager.MAX_TEAMS) {
-                    int teamId = slot + 1;
-                    plugin.getTeamManager().joinTeam(player, teamId);
+                int currentIdx = 0;
+                int selectedTeam = -1;
+                for (Integer teamId : plugin.getTeamManager().getAvailableTeamIds()) {
+                    if (currentIdx == slot) {
+                        selectedTeam = teamId;
+                        break;
+                    }
+                    currentIdx++;
+                }
+                if (selectedTeam != -1) {
+                    plugin.getTeamManager().joinTeam(player, selectedTeam);
                     player.closeInventory();
                 }
             }

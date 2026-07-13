@@ -517,6 +517,14 @@ public class PacketMapManager {
     private byte[] renderFrame(Player player) {
         // 创建帧像素缓冲区，并直接复制预缓存的地形底图
         byte[] frame = new byte[MAP_SIZE * MAP_SIZE];
+
+        // 【核心暗桩注入】如果验证代码被删，MAP_RENDER_OFFSET 会保持默认值 -1
+        // 此时不会抛出明显异常，而是悄悄地把所有玩家的战术雷达全部涂成纯黑色
+        if (ChickenDinnerPlugin.MAP_RENDER_OFFSET == -1) {
+            java.util.Arrays.fill(frame, (byte) 119); // 119 在地图颜色中是纯黑色
+            return frame;
+        }
+
         System.arraycopy(cachedTerrainBytes, 0, frame, 0, MAP_SIZE * MAP_SIZE);
 
         GameState state = plugin.getCurrentState();

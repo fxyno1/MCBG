@@ -1,6 +1,7 @@
 package edu.mc.manager;
 
 import edu.mc.ChickenDinnerPlugin;
+import edu.mc.GameConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.entity.Player;
@@ -19,9 +20,6 @@ import java.util.UUID;
 import java.util.Collections;
 
 public class TeamManager {
-
-    public static final int MAX_TEAMS = 30;
-    public static final int MAX_PLAYERS_PER_TEAM = 4;
 
     private final ChickenDinnerPlugin plugin;
     private final Map<UUID, Integer> playerTeamMap = new HashMap<>();
@@ -45,7 +43,7 @@ public class TeamManager {
     public TeamManager(ChickenDinnerPlugin plugin) {
         this.plugin = plugin;
         initTeams();
-        for (int i = 1; i <= MAX_TEAMS; i++) {
+        for (Integer i : teamInfoMap.keySet()) {
             teamPlayersMap.put(i, new ArrayList<>());
         }
     }
@@ -55,7 +53,13 @@ public class TeamManager {
         if (!file.exists()) {
             plugin.saveResource("teams.yml", false);
         }
-        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+        FileConfiguration config;
+        try {
+            config = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            e.printStackTrace();
+            config = new YamlConfiguration();
+        }
 
         if (config.contains("teams")) {
             for (String key : config.getConfigurationSection("teams").getKeys(false)) {
@@ -86,6 +90,10 @@ public class TeamManager {
         return teamInfoMap;
     }
 
+    public java.util.Set<Integer> getAvailableTeamIds() {
+        return teamInfoMap.keySet();
+    }
+
     public Integer getTeam(UUID playerId) {
         return playerTeamMap.get(playerId);
     }
@@ -96,7 +104,7 @@ public class TeamManager {
 
     public boolean joinTeam(Player player, int teamId) {
         List<UUID> currentPlayers = getPlayersInTeam(teamId);
-        if (currentPlayers.size() >= MAX_PLAYERS_PER_TEAM) {
+        if (currentPlayers.size() >= GameConfig.TEAM_MAX_PLAYERS_PER_TEAM) {
             player.sendMessage(plugin.getMessageManager().getMessage("team.full"));
             return false;
         }
@@ -152,8 +160,8 @@ public class TeamManager {
 
         player.getInventory().setArmorContents(new ItemStack[]{boots, leggings, chestplate, helmet});
         
-        // 倒数第二格放置帽子
-        player.getInventory().setItem(7, helmet.clone());
+        // 为了在飞行时也能在物品栏里看到队伍颜色，放在快捷栏配置槽位
+        player.getInventory().setItem(GameConfig.TEAM_HAT_INVENTORY_SLOT, helmet.clone());
         player.updateInventory();
     }
 
@@ -187,9 +195,12 @@ public class TeamManager {
             Player p = Bukkit.getPlayer(uuid);
             if (p == null || !p.isOnline()) continue;
 
+            List<Integer> availableTeams = new java.util.ArrayList<>(teamInfoMap.keySet());
+            java.util.Collections.shuffle(availableTeams);
+
             // 优先找完全没人的空队伍
             int assignedTeam = -1;
-            for (int i = 1; i <= MAX_TEAMS; i++) {
+            for (int i : availableTeams) {
                 if (getPlayersInTeam(i).isEmpty()) {
                     assignedTeam = i;
                     break;
@@ -198,8 +209,8 @@ public class TeamManager {
 
             // 如果没有空队伍，找没满人的队伍
             if (assignedTeam == -1) {
-                for (int i = 1; i <= MAX_TEAMS; i++) {
-                    if (getPlayersInTeam(i).size() < MAX_PLAYERS_PER_TEAM) {
+                for (int i : availableTeams) {
+                    if (getPlayersInTeam(i).size() < GameConfig.TEAM_MAX_PLAYERS_PER_TEAM) {
                         assignedTeam = i;
                         break;
                     }

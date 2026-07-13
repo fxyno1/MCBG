@@ -36,12 +36,7 @@ public class ScoreboardManager {
         if (!file.exists()) {
             plugin.saveResource("scoreboard.yml", false);
         }
-        try {
-            config = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            e.printStackTrace();
-            config = new YamlConfiguration();
-        }
+        config = YamlConfiguration.loadConfiguration(file);
     }
     
     private String getStr(String path) {
@@ -119,8 +114,6 @@ public class ScoreboardManager {
             newLines.add(playersStr);
             newLines.add(statusStr);
             newLines.add("§2");
-            newLines.add(getStr("lines.lobby_extra"));
-            newLines.add("§3");
             for (String footerLine : config.getStringList("lines.footer")) {
                 newLines.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', footerLine));
             }

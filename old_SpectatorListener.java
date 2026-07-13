@@ -27,25 +27,24 @@ public class SpectatorListener implements Listener {
     }
 
     public static void openDeathMenu(Player player) {
-        edu.mc.ChickenDinnerPlugin plugin = org.bukkit.plugin.java.JavaPlugin.getPlugin(edu.mc.ChickenDinnerPlugin.class);
-        Inventory inv = Bukkit.createInventory(null, 27, "Chest");
+        Inventory inv = Bukkit.createInventory(null, 27, "§c你已被淘汰");
 
         ItemStack eye = new ItemStack(Material.EYE_OF_ENDER);
         ItemMeta eyeMeta = eye.getItemMeta();
-        eyeMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.spectate_player"));
+        eyeMeta.setDisplayName("§a继续观战");
         eye.setItemMeta(eyeMeta);
         inv.setItem(10, eye); // 2行2列
 
         ItemStack cart = new ItemStack(Material.STORAGE_MINECART);
         ItemMeta cartMeta = cart.getItemMeta();
-        cartMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.play_again"));
-        cartMeta.setLore(Arrays.asList(plugin.getMessageManager().getMessage("gui.play_again_lore")));
+        cartMeta.setDisplayName("§e再来一局");
+        cartMeta.setLore(Arrays.asList("§7(暂时无法使用，等待后续更新)"));
         cart.setItemMeta(cartMeta);
         inv.setItem(13, cart); // 2行5列
 
         ItemStack bed = new ItemStack(Material.BED);
         ItemMeta bedMeta = bed.getItemMeta();
-        bedMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.back_to_hub_bed"));
+        bedMeta.setDisplayName("§c退出到大厅");
         bed.setItemMeta(bedMeta);
         inv.setItem(16, bed); // 2行8列
 
@@ -53,7 +52,7 @@ public class SpectatorListener implements Listener {
     }
 
     public void openSpectateList(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, plugin.getMessageManager().getMessage("gui.spectator_list"));
+        Inventory inv = Bukkit.createInventory(null, 54, "§a观战列表");
 
         int index = 0;
         for (UUID aliveId : plugin.getPlayerManager().getAlivePlayers()) {
@@ -83,7 +82,7 @@ public class SpectatorListener implements Listener {
 
         ItemStack close = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 14);
         ItemMeta closeMeta = close.getItemMeta();
-        closeMeta.setDisplayName(plugin.getMessageManager().getMessage("gui.close"));
+        closeMeta.setDisplayName("§c关闭");
         close.setItemMeta(closeMeta);
         inv.setItem(53, close);
 
@@ -96,7 +95,7 @@ public class SpectatorListener implements Listener {
             return;
         Player player = (Player) event.getWhoClicked();
 
-        if (event.getView().getTitle().equals("Chest") || event.getView().getTitle().equals(plugin.getMessageManager().getMessage("gui.eliminated"))) {
+        if (event.getView().getTitle().equals("§c你已被淘汰")) {
             event.setCancelled(true);
             if (event.getCurrentItem() != null) {
                 if (event.getCurrentItem().getType() == Material.EYE_OF_ENDER) {
@@ -106,7 +105,7 @@ public class SpectatorListener implements Listener {
                     player.performCommand("hub");
                 }
             }
-        } else if (event.getView().getTitle().equals(plugin.getMessageManager().getMessage("gui.spectator_list"))) {
+        } else if (event.getView().getTitle().equals("§a观战列表")) {
             event.setCancelled(true);
             if (event.getCurrentItem() != null) {
                 if (event.getCurrentItem().getType() == Material.STAINED_GLASS_PANE) {
@@ -117,32 +116,21 @@ public class SpectatorListener implements Listener {
                         Player target = Bukkit.getPlayerExact(meta.getOwner());
                         if (target != null && target.isOnline()) {
                             player.teleport(target.getLocation().clone().add(0, 3.5, 0));
-                            java.util.Map<String, String> map = new java.util.HashMap<>();
-                            map.put("player", target.getName());
-                            player.sendMessage(plugin.getMessageManager().getMessage("spectator.teleport_to", map));
+                            player.sendMessage("§a已传送至 " + target.getName() + " 身边观战！");
                             player.closeInventory();
                         } else {
-                            player.sendMessage(plugin.getMessageManager().getMessage("spectator.target_offline"));
+                            player.sendMessage("§c该玩家不在线或已淘汰！");
                         }
                     }
                 }
             }
         } else {
-            // 禁止旁观者移动快捷栏里的特殊物品，并使其在此界面中也能触发相应功能
+            // 禁止旁观者移动快捷栏里的特殊物品
             if (plugin.getPlayerManager().isSpectator(player)) {
                 if (event.getCurrentItem() != null) {
-                    if (event.getCurrentItem().getType() == Material.EYE_OF_ENDER
-                            || event.getCurrentItem().getType() == Material.STORAGE_MINECART
+                    if (event.getCurrentItem().getType() == Material.COMPASS
                             || event.getCurrentItem().getType() == Material.BED) {
                         event.setCancelled(true);
-                        
-                        if (event.getCurrentItem().getType() == Material.EYE_OF_ENDER) {
-                            player.closeInventory();
-                            openSpectateList(player);
-                        } else if (event.getCurrentItem().getType() == Material.BED) {
-                            player.closeInventory();
-                            player.performCommand("hub");
-                        }
                     }
                 }
             }
@@ -157,13 +145,11 @@ public class SpectatorListener implements Listener {
                     event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
                 ItemStack item = player.getItemInHand();
                 if (item != null) {
-                    if (item.getType() == Material.EYE_OF_ENDER) {
+                    if (item.getType() == Material.COMPASS) {
                         openSpectateList(player);
                         event.setCancelled(true);
                     } else if (item.getType() == Material.BED) {
                         player.performCommand("hub");
-                        event.setCancelled(true);
-                    } else if (item.getType() == Material.STORAGE_MINECART) {
                         event.setCancelled(true);
                     }
                 }
