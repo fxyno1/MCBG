@@ -140,6 +140,12 @@ public class TeamManager {
             player.setPlayerListName(player.getName()); // 恢复默认
             player.setDisplayName(player.getName());
             player.getInventory().setArmorContents(null);
+            
+            int hatSlot = (plugin.getCurrentState() == edu.mc.state.GameState.LOBBY || plugin.getCurrentState() == edu.mc.state.GameState.STARTING) 
+                    ? GameConfig.TEAM_HAT_LOBBY_SLOT : GameConfig.TEAM_HAT_INVENTORY_SLOT;
+            player.getInventory().setItem(hatSlot, null);
+            player.updateInventory();
+            player.sendMessage("§a你已取消队伍选择。");
         }
     }
 
@@ -161,7 +167,9 @@ public class TeamManager {
         player.getInventory().setArmorContents(new ItemStack[]{boots, leggings, chestplate, helmet});
         
         // 为了在飞行时也能在物品栏里看到队伍颜色，放在快捷栏配置槽位
-        player.getInventory().setItem(GameConfig.TEAM_HAT_INVENTORY_SLOT, helmet.clone());
+        int hatSlot = (plugin.getCurrentState() == edu.mc.state.GameState.LOBBY || plugin.getCurrentState() == edu.mc.state.GameState.STARTING) 
+                ? GameConfig.TEAM_HAT_LOBBY_SLOT : GameConfig.TEAM_HAT_INVENTORY_SLOT;
+        player.getInventory().setItem(hatSlot, helmet.clone());
         player.updateInventory();
     }
 

@@ -54,6 +54,15 @@ public class TeamListener implements Listener {
                 index++;
             }
         }
+        
+        ItemStack leaveItem = new ItemStack(Material.BARRIER);
+        ItemMeta leaveMeta = leaveItem.getItemMeta();
+        if (leaveMeta != null) {
+            leaveMeta.setDisplayName("§c取消选队 / 退出当前队伍");
+            leaveItem.setItemMeta(leaveMeta);
+        }
+        inv.setItem(53, leaveItem);
+        
         player.openInventory(inv);
     }
 
@@ -125,6 +134,9 @@ public class TeamListener implements Listener {
                     plugin.getTeamManager().joinTeam(player, selectedTeam);
                     player.closeInventory();
                 }
+            } else if (clickedItem != null && clickedItem.getType() == Material.BARRIER) {
+                plugin.getTeamManager().leaveTeam(player);
+                player.closeInventory();
             }
         }
     }

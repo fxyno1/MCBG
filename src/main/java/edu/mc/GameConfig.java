@@ -89,6 +89,9 @@ public final class GameConfig {
     /** 组队状态下，用来展示队伍颜色的帽子，放在快捷栏的哪个槽位（0-8） */
     public static int TEAM_HAT_INVENTORY_SLOT = 7;
 
+    /** 组队状态下，大厅准备期间用来展示队伍颜色的帽子，放在快捷栏的哪个槽位（0-8） */
+    public static int TEAM_HAT_LOBBY_SLOT = 7;
+
     // =====================================================
     // 【跳伞 & 滑翔阶段】
     // =====================================================
@@ -197,6 +200,7 @@ public final class GameConfig {
         
         TEAM_MAX_PLAYERS_PER_TEAM = config.getInt("team.max-players-per-team", TEAM_MAX_PLAYERS_PER_TEAM);
         TEAM_HAT_INVENTORY_SLOT = config.getInt("team.hat-inventory-slot", TEAM_HAT_INVENTORY_SLOT);
+        TEAM_HAT_LOBBY_SLOT = config.getInt("team.hat-lobby-slot", TEAM_HAT_LOBBY_SLOT);
 
         PARACHUTE_FALL_SPEED = config.getDouble("parachute.fall-speed", PARACHUTE_FALL_SPEED);
         PARACHUTE_GLIDE_MULTIPLIER = config.getDouble("parachute.glide-multiplier", PARACHUTE_GLIDE_MULTIPLIER);
