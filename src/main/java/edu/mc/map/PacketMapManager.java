@@ -546,10 +546,9 @@ public class PacketMapManager {
         // 绘制毒圈和安全区
         ZoneManager zm = plugin.getZoneManager();
         if (zm != null && state != GameState.LOBBY) {
-            org.bukkit.WorldBorder border = world.getWorldBorder();
-            double bx = border.getCenter().getX();
-            double bz = border.getCenter().getZ();
-            double bs = border.getSize();
+            double bx = zm.getCurrentX();
+            double bz = zm.getCurrentZ();
+            double bs = zm.getCurrentSize();
 
             // 绘制当前毒圈（蓝色）
             drawRectOnBytes(frame,

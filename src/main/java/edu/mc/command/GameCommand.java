@@ -41,6 +41,8 @@ public class GameCommand implements CommandExecutor, org.bukkit.command.TabCompl
             sender.sendMessage(COLOR_INFO + "/cd resetmap - 强制刷新所有玩家的GPS雷达地图");
             sender.sendMessage(COLOR_INFO + "/cd reload - 重新载入配置文件 (config.yml)");
             sender.sendMessage(COLOR_INFO + "/cd cleansigns <存档名> - 清理指定存档中箱子周围的告示牌");
+            sender.sendMessage(COLOR_INFO + "/cd testborder - [测试用] 在身边生成一个测试箱子并解除边界限制");
+            sender.sendMessage(COLOR_INFO + "/cd resetborder - 恢复当前世界物理边界为600格正常尺寸");
             return true;
         }
 
@@ -69,6 +71,12 @@ public class GameCommand implements CommandExecutor, org.bukkit.command.TabCompl
                 break;
             case "cleansigns":
                 handleCleanSigns(sender, args);
+                break;
+            case "testborder":
+                handleTestBorder(sender);
+                break;
+            case "resetborder":
+                handleResetBorder(sender);
                 break;
             default:
                 sender.sendMessage(COLOR_ERROR + "未知子命令，请直接输入/cd 查看帮助。");
@@ -321,6 +329,63 @@ public class GameCommand implements CommandExecutor, org.bukkit.command.TabCompl
         });
     }
 
+    private void handleTestBorder(CommandSender sender) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(COLOR_ERROR + "只有玩家可以执行此测试命令！");
+            return;
+        }
+        Player player = (Player) sender;
+        org.bukkit.Location loc = player.getLocation();
+        org.bukkit.util.Vector dir = loc.getDirection().normalize().multiply(4);
+        org.bukkit.Location chestLoc = loc.clone().add(dir);
+        chestLoc.setY(loc.getY()); // 保持同一高度
+
+        // 在玩家前方 4 格生成一个箱子
+        org.bukkit.block.Block block = chestLoc.getBlock();
+        block.setType(org.bukkit.Material.CHEST);
+        if (block.getState() instanceof org.bukkit.block.Chest) {
+            org.bukkit.block.Chest chest = (org.bukkit.block.Chest) block.getState();
+            chest.getInventory().clear();
+            chest.getInventory().addItem(new org.bukkit.inventory.ItemStack(org.bukkit.Material.DIAMOND, 64));
+        }
+
+        // 挂载隐形实体交互代理
+        if (plugin.getChestProxyManager() != null) {
+            plugin.getChestProxyManager().spawnProxyForChest(block);
+        }
+
+        // 将原生物理世界边界缩小到玩家身边半径 2 格（尺寸 4 格）
+        org.bukkit.WorldBorder border = player.getWorld().getWorldBorder();
+        border.reset();
+        border.setCenter(loc.getX(), loc.getZ());
+        border.setSize(4.0);
+        border.setDamageAmount(0.0);
+        border.setDamageBuffer(0.0);
+        border.setWarningDistance(0);
+
+        sender.sendMessage(COLOR_SUCCESS + "=== 原生边界外开箱测试环境已部署 ===");
+        sender.sendMessage(COLOR_INFO + "1. 原生世界边界已缩小为半径 2 格（你眼前会看到官方原版红蓝光幕墙）。");
+        sender.sendMessage(COLOR_INFO + "2. 正前方 4 格处的测试箱子位于【官方原生边界外部】。");
+        sender.sendMessage(COLOR_INFO + "3. 请右键对准边界外的箱子（空手或手持任何物品均可），直接开箱！");
+        sender.sendMessage(COLOR_INFO + "4. 测试完毕后可输入 /cd resetborder 恢复正常全岛边界。");
+    }
+
+    private void handleResetBorder(CommandSender sender) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(COLOR_ERROR + "只有玩家可以执行此命令！");
+            return;
+        }
+        Player player = (Player) sender;
+        org.bukkit.WorldBorder border = player.getWorld().getWorldBorder();
+        border.reset();
+        border.setCenter(0, 16);
+        border.setSize(600.0);
+        border.setDamageAmount(0.0);
+        border.setDamageBuffer(0.0);
+        border.setWarningDistance(0);
+        sender.sendMessage(COLOR_SUCCESS + "当前世界的物理边界已成功恢复为 600 格全岛范围！");
+    }
+
     @Override
     public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission(PERMISSION_ADMIN)) {
@@ -328,7 +393,7 @@ public class GameCommand implements CommandExecutor, org.bukkit.command.TabCompl
         }
         if (args.length == 1) {
             java.util.List<String> subs = java.util.Arrays.asList("start", "pause", "skip", "stop", "settime",
-                    "resetmap", "reload", "cleansigns");
+                    "resetmap", "reload", "cleansigns", "testborder", "resetborder");
             java.util.List<String> result = new java.util.ArrayList<>();
             for (String s : subs) {
                 if (s.startsWith(args[0].toLowerCase())) {

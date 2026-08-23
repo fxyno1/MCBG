@@ -24,6 +24,7 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
     private PacketMapManager packetMapManager;
     private edu.mc.manager.TeamManager teamManager;
     private edu.mc.manager.WorldManager worldManager;
+    private edu.mc.manager.ChestProxyManager chestProxyManager;
 
     private static String NMS_PACKAGE = null;
 
@@ -78,9 +79,12 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
         this.worldManager = new edu.mc.manager.WorldManager(this);
         this.gameManager = new GameManager(this);
 
+        this.chestProxyManager = new edu.mc.manager.ChestProxyManager(this);
+        Bukkit.getPluginManager().registerEvents(this.chestProxyManager, this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.GameListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.TeamListener(this), this);
         Bukkit.getPluginManager().registerEvents(new edu.mc.listener.SpectatorListener(this), this);
+        edu.mc.manager.BorderInteractFixer.register(this);
         edu.mc.command.GameCommand gameCommand = new edu.mc.command.GameCommand(this);
         getCommand("chickendinner").setExecutor(gameCommand); // 注册游戏核心命令
         getCommand("chickendinner").setTabCompleter(gameCommand);
@@ -226,6 +230,10 @@ public final class ChickenDinnerPlugin extends JavaPlugin {
 
     public edu.mc.manager.WorldManager getWorldManager() {
         return worldManager;
+    }
+
+    public edu.mc.manager.ChestProxyManager getChestProxyManager() {
+        return chestProxyManager;
     }
 
     public GameManager getGameManager() {

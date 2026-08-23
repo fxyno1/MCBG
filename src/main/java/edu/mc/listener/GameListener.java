@@ -296,6 +296,11 @@ public class GameListener implements Listener {
                         player.getName());
                 placeSign(eastBlock.getRelative(org.bukkit.block.BlockFace.SOUTH), org.bukkit.block.BlockFace.SOUTH,
                         player.getName());
+
+                // 为死亡盒子挂载高精度开箱代理（两半部分全覆盖）
+                if (plugin.getChestProxyManager() != null) {
+                    plugin.getChestProxyManager().spawnProxyForChest(deathBlock);
+                }
             }
 
             // 先立即从存活列表移出，保证吃鸡结算的实时性
@@ -807,9 +812,9 @@ public class GameListener implements Listener {
             }
         }
 
-        // 非比赛阶段禁止开箱子
+        // 非比赛阶段禁止开箱子（OP 管理员除外，方便调试和 /cd testborder 测试）
         GameState state = plugin.getCurrentState();
-        if (state != GameState.INGAME && state != GameState.FLIGHT) {
+        if (state != GameState.INGAME && state != GameState.FLIGHT && !player.isOp()) {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
                 Material type = event.getClickedBlock().getType();
                 if (type == Material.CHEST || type == Material.TRAPPED_CHEST || type == Material.ENDER_CHEST) {
@@ -823,17 +828,32 @@ public class GameListener implements Listener {
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block block = event.getClickedBlock();
             
-            // 处理点击遗物箱告示牌的逻辑
+            // 处理点击附着在箱子上的告示牌逻辑（包括遗物箱告示牌和“已被打开”告示牌）
             if (block != null && (block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST)) {
-                org.bukkit.block.Sign sign = (org.bukkit.block.Sign) block.getState();
-                if (plugin.getMessageManager().getMessage("sign.tombstone").equals(sign.getLine(0))) {
-                    org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
-                    Block attached = block.getRelative(signData.getAttachedFace());
-                    if (attached.getType() == Material.CHEST || attached.getType() == Material.TRAPPED_CHEST) {
-                        Chest chest = (Chest) attached.getState();
-                        player.openInventory(chest.getInventory());
-                        event.setCancelled(true);
-                        return;
+                if (block.getState() instanceof org.bukkit.block.Sign) {
+                    org.bukkit.block.Sign sign = (org.bukkit.block.Sign) block.getState();
+                    if (sign.getData() instanceof org.bukkit.material.Sign) {
+                        org.bukkit.material.Sign signData = (org.bukkit.material.Sign) sign.getData();
+                        Block attached = block.getRelative(signData.getAttachedFace());
+                        if (attached.getType() == Material.CHEST || attached.getType() == Material.TRAPPED_CHEST) {
+                            Chest chest = (Chest) attached.getState();
+                            org.bukkit.inventory.Inventory inv = chest.getInventory();
+                            Location loc = chest.getLocation();
+                            if (inv instanceof org.bukkit.inventory.DoubleChestInventory) {
+                                org.bukkit.block.DoubleChest holder = ((org.bukkit.inventory.DoubleChestInventory) inv).getHolder();
+                                if (holder != null) {
+                                    loc = holder.getLocation();
+                                }
+                            }
+                            if (attached.getType() != Material.TRAPPED_CHEST && !plugin.getLootManager().isChestOpened(loc)) {
+                                plugin.getLootManager().populateChest(inv);
+                                plugin.getLootManager().markChestOpened(loc);
+                                placeSignsAroundChest(attached, inv);
+                            }
+                            player.openInventory(inv);
+                            event.setCancelled(true);
+                            return;
+                        }
                     }
                 }
             }
@@ -845,10 +865,10 @@ public class GameListener implements Listener {
                     event.setUseInteractedBlock(org.bukkit.event.Event.Result.ALLOW);
                 }
                 Chest chest = (Chest) block.getState();
-                org.bukkit.inventory.Inventory inv = chest.getBlockInventory();
+                org.bukkit.inventory.Inventory inv = chest.getInventory();
                 Location loc = chest.getLocation();
 
-                // 如果是双箱子（DoubleChest），我们将 Location 统一规范为 DoubleChest 的公共合成 Location
+                // 如果是双箱子（DoubleChest），统一使用 DoubleChest 的公共合成 Location
                 // 这可彻底杜绝玩家通过分别右键左右两半边大箱子，导致大箱子被连续刷出两次物资的 Bug
                 if (inv instanceof org.bukkit.inventory.DoubleChestInventory) {
                     org.bukkit.block.DoubleChest holder = ((org.bukkit.inventory.DoubleChestInventory) inv).getHolder();
@@ -856,8 +876,6 @@ public class GameListener implements Listener {
                         loc = holder.getLocation();
                     }
                 }
-
-
 
                 // 恢复空投箱（TRAPPED_CHEST）跳过逻辑，防止空投高阶物资被普通物资覆盖
                 if (block.getType() == Material.TRAPPED_CHEST) {
@@ -869,11 +887,7 @@ public class GameListener implements Listener {
                     plugin.getLootManager().markChestOpened(loc);
 
                     // 放置四周的“已被打开”告示牌
-                    org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH,
-                            org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST, org.bukkit.block.BlockFace.EAST };
-                    for (org.bukkit.block.BlockFace face : faces) {
-                        placeOpenedChestSign(block.getRelative(face), face);
-                    }
+                    placeSignsAroundChest(block, inv);
                 }
             }
         }
@@ -976,6 +990,32 @@ public class GameListener implements Listener {
                 sign.setLine(2, plugin.getMessageManager().getMessage("sign.tombstone_dead"));
                 sign.update(true, false);
             }
+        }
+    }
+
+    private void placeSignsAroundChest(Block block, org.bukkit.inventory.Inventory inv) {
+        org.bukkit.block.BlockFace[] faces = { org.bukkit.block.BlockFace.NORTH,
+                org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST, org.bukkit.block.BlockFace.EAST };
+        if (inv instanceof org.bukkit.inventory.DoubleChestInventory) {
+            org.bukkit.block.DoubleChest holder = ((org.bukkit.inventory.DoubleChestInventory) inv).getHolder();
+            if (holder != null) {
+                if (holder.getLeftSide() instanceof org.bukkit.block.Chest) {
+                    Block left = ((org.bukkit.block.Chest) holder.getLeftSide()).getBlock();
+                    for (org.bukkit.block.BlockFace face : faces) {
+                        placeOpenedChestSign(left.getRelative(face), face);
+                    }
+                }
+                if (holder.getRightSide() instanceof org.bukkit.block.Chest) {
+                    Block right = ((org.bukkit.block.Chest) holder.getRightSide()).getBlock();
+                    for (org.bukkit.block.BlockFace face : faces) {
+                        placeOpenedChestSign(right.getRelative(face), face);
+                    }
+                }
+                return;
+            }
+        }
+        for (org.bukkit.block.BlockFace face : faces) {
+            placeOpenedChestSign(block.getRelative(face), face);
         }
     }
 

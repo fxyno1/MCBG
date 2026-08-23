@@ -142,12 +142,13 @@ public class ScoreboardManager {
             int aliveCount = plugin.getPlayerManager().getAliveCount();
             String aliveStr = getStr("lines.alive").replace("{alive}", String.valueOf(aliveCount));
 
+            edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
+
             // 4. 缩圈时间
             String shrinkTimeStr = "§f缩圈时间: §a--";
             if (state == GameState.FLIGHT) {
                 shrinkTimeStr = "§f缩圈时间: §a起飞中";
             } else if (state == GameState.INGAME) {
-                edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
                 if (zm != null) {
                     if (zm.isShrinking()) {
                         shrinkTimeStr = getStr("lines.zone.shrinking");
@@ -162,7 +163,6 @@ public class ScoreboardManager {
             // 5. 中心位置 (安全区圆心方向)
             String centerStr = "§f中心位置: §a-";
             if (state == GameState.INGAME || state == GameState.FLIGHT) {
-                edu.mc.manager.ZoneManager zm = plugin.getZoneManager();
                 if (zm != null) {
                     centerStr = "§f中心位置: " + getDirectionArrow(player, zm.getTargetX(), zm.getTargetZ());
                 }
@@ -170,8 +170,8 @@ public class ScoreboardManager {
 
             // 6. 边界大小
             String borderSizeStr = "§f边界大小: §a600";
-            if (player.getWorld() != null) {
-                borderSizeStr = "§f边界大小: §a" + (int) player.getWorld().getWorldBorder().getSize();
+            if (zm != null) {
+                borderSizeStr = "§f边界大小: §a" + (int) zm.getCurrentSize();
             }
 
             newLines.add("§1");

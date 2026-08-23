@@ -55,7 +55,16 @@ public class WorldManager {
             world.setAutoSave(false); // 禁止自动保存，提高性能，反正是用完即删
             world.setGameRuleValue("mobGriefing", "true"); // 必须开启，否则火焰弹无法破坏地形！
             world.setGameRuleValue("naturalRegeneration", "false"); // 禁止自然回血
+            world.getWorldBorder().reset();
+            world.getWorldBorder().setCenter(0, 16);
+            world.getWorldBorder().setSize(600.0);
+            world.getWorldBorder().setDamageAmount(0.0);
+            world.getWorldBorder().setDamageBuffer(0.0);
+            world.getWorldBorder().setWarningDistance(0);
             plugin.getLogger().info("Game world loaded successfully.");
+            if (plugin.getChestProxyManager() != null) {
+                plugin.getChestProxyManager().scanAndRegisterWorldChests(world);
+            }
         } else {
             plugin.getLogger().severe("Failed to load game world!");
         }
@@ -64,6 +73,9 @@ public class WorldManager {
     public void deleteGameWorld() {
         World gameWorld = Bukkit.getWorld(GAME_WORLD);
         if (gameWorld != null) {
+            if (plugin.getChestProxyManager() != null) {
+                plugin.getChestProxyManager().clearAllProxies(gameWorld);
+            }
             // 强制踢出还留在这个世界里的玩家（理论上不应该有，但作为防脱底措施）
             for (Player p : gameWorld.getPlayers()) {
                 p.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());

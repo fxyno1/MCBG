@@ -199,6 +199,11 @@ public class AirdropManager {
         activeAirdrops.add(dropLoc);
         saveAirdrops();
 
+        // 为空投箱挂载隐形交互代理，确保在毒圈边界外也能秒开
+        if (plugin.getChestProxyManager() != null) {
+            plugin.getChestProxyManager().spawnProxyForChest(block);
+        }
+
         // 广播空投消息
         Bukkit.broadcastMessage("§e[空投] §a一架飞机已投下空投补给箱！坐标: X:" + (int) dropX + " Z:" + (int) dropZ);
 

@@ -27,7 +27,7 @@ public class ZoneManager {
         return remainingShrinkSeconds;
     }
 
-    // 下一级安全区（也就是白圈）的目标参数，用于雷达地图渲染和缩圈驱动
+    // 下一级安全区（白圈）的目标参数，用于雷达地图渲染和缩圈驱动
     private double targetX = 0.0;
     private double targetZ = 16.0;
     private double targetSize = 600.0;
@@ -40,14 +40,16 @@ public class ZoneManager {
     public void initBorder() {
         if (gameWorld == null)
             return;
-        WorldBorder border = gameWorld.getWorldBorder();
 
+        // 初始化官方原版 WorldBorder 为 600 格全岛范围
+        WorldBorder border = gameWorld.getWorldBorder();
+        border.reset();
         border.setCenter(0, 16);
         border.setSize(600.0);
-
         border.setDamageAmount(0.0);
         border.setDamageBuffer(0.0);
         border.setWarningDistance(0);
+
         this.phase = -1;
         this.remainingShrinkSeconds = 0;
         if (shrinkTask != null) {
@@ -55,7 +57,6 @@ public class ZoneManager {
             shrinkTask = null;
         }
 
-        // 默认白圈是整个地图初始边界，代表还没有划定安全区！
         this.targetX = 0.0;
         this.targetZ = 16.0;
         this.targetSize = 600.0;
@@ -69,13 +70,13 @@ public class ZoneManager {
             return; // 已经到最后一圈，没有下一波了
 
         // 当前作为基准的圈（如果游戏还没开始，基准是 600 直径）
-        double currentSize = (phase == -1) ? 600.0 : getPhaseSizes()[phase];
-        double currentX = (phase == -1) ? 0.0 : targetX;
-        double currentZ = (phase == -1) ? 16.0 : targetZ;
+        double baseSize = (phase == -1) ? 600.0 : getPhaseSizes()[phase];
+        double baseX = (phase == -1) ? 0.0 : targetX;
+        double baseZ = (phase == -1) ? 16.0 : targetZ;
 
         double nextSize = getPhaseSizes()[nextPhase];
 
-        double currentR = currentSize / 2.0;
+        double currentR = baseSize / 2.0;
         double targetR = nextSize / 2.0;
 
         if (targetR < currentR) {
@@ -84,8 +85,8 @@ public class ZoneManager {
             double offsetX = (Math.random() * 2 * maxOffset) - maxOffset;
             double offsetZ = (Math.random() * 2 * maxOffset) - maxOffset;
 
-            this.targetX = currentX + offsetX;
-            this.targetZ = currentZ + offsetZ;
+            this.targetX = baseX + offsetX;
+            this.targetZ = baseZ + offsetZ;
             this.targetSize = nextSize;
         }
     }
@@ -93,7 +94,7 @@ public class ZoneManager {
     public void applyZoneDamage() {
         if (phase < 0 || gameWorld == null)
             return;
-        double damage = getPhaseDamages()[phase];
+        double damage = (phase < getPhaseDamages().length) ? getPhaseDamages()[phase] : 1.0;
         if (damage <= 0)
             return;
 
@@ -118,6 +119,7 @@ public class ZoneManager {
                 } else {
                     p.setHealth(newHealth);
                     p.playEffect(org.bukkit.EntityEffect.HURT);
+                    ((ChickenDinnerPlugin) plugin).sendActionBar(p, "§c§l⚠ 你正处于毒圈中！生命值持续下降中！");
                 }
             }
         }
@@ -139,7 +141,6 @@ public class ZoneManager {
         double currentX = border.getCenter().getX();
         double currentZ = border.getCenter().getZ();
 
-        // 提取已经预先计算好的下一个白圈目标参数
         final double finalTargetX = this.targetX;
         final double finalTargetZ = this.targetZ;
         final double finalTargetSize = this.targetSize;
@@ -163,7 +164,7 @@ public class ZoneManager {
                         shrinkTask = null;
                         remainingShrinkSeconds = 0;
 
-                        // 关键修改：当前阶段缩圈彻底完成后，才生成并公布下一阶段 of 白圈参数！
+                        // 当前阶段缩圈彻底完成后，生成并公布下一阶段白圈参数
                         generateNextZone();
                         Bukkit.broadcastMessage(((ChickenDinnerPlugin) plugin).getMessageManager().getMessage("zone.shrink_done"));
                         return;
@@ -172,18 +173,16 @@ public class ZoneManager {
                     double progress = (double) Math.min(currentTick, totalTicks) / totalTicks;
                     double curX = currentX + (finalTargetX - currentX) * progress;
                     double curZ = currentZ + (finalTargetZ - currentZ) * progress;
-                    
-                    // 计算下一秒的目标尺寸，以进行平滑过渡收缩
+
                     double nextProgress = (double) Math.min(currentTick + 20, totalTicks) / totalTicks;
                     double nextSize = currentSize + (finalTargetSize - currentSize) * nextProgress;
 
                     border.setCenter(curX, curZ);
-                    // 【修改】使用 setSize(size, seconds) 启动 2 秒的过渡收缩。这使边界在客户端保持红色收缩状态，并提供平滑过渡与 1 秒的交互缓冲区，保证缩圈时玩家仍能开箱
+                    // 触发原版 2 秒平滑收缩动画，呈现官方红色收缩光幕
                     border.setSize(nextSize, 2L);
                 }
-            }.runTaskTimer(plugin, 1L, 20L); // 每 20 ticks (1秒) 更新一次，杜绝客户端 desync
+            }.runTaskTimer(plugin, 1L, 20L);
         } else {
-            // 如果不需要缩圈（理论上不可能），则直接生成
             generateNextZone();
         }
 
@@ -204,6 +203,18 @@ public class ZoneManager {
      */
     public boolean isShrinking() {
         return shrinkTask != null;
+    }
+
+    public double getCurrentX() {
+        return gameWorld != null ? gameWorld.getWorldBorder().getCenter().getX() : 0.0;
+    }
+
+    public double getCurrentZ() {
+        return gameWorld != null ? gameWorld.getWorldBorder().getCenter().getZ() : 16.0;
+    }
+
+    public double getCurrentSize() {
+        return gameWorld != null ? gameWorld.getWorldBorder().getSize() : 600.0;
     }
 
     public double getTargetX() {
