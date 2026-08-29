@@ -2,6 +2,8 @@ package edu.mc.manager;
 
 import edu.mc.ChickenDinnerPlugin;
 import edu.mc.GameConfig;
+import edu.mc.api.event.GameEndEvent;
+import edu.mc.api.event.GameStartEvent;
 import edu.mc.state.GameState;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -180,7 +182,7 @@ public class GameManager {
             plugin.getFlightManager().startFlight(plugin.getPlayerManager().getAlivePlayers());
             this.initialPlayerCount = plugin.getPlayerManager().getAliveCount();
             
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "hytr start game_1 代号:吃鸡");
+            Bukkit.getPluginManager().callEvent(new GameStartEvent("game_1", "代号:吃鸡"));
 
             // 为所有参赛玩家强力设置最大生命值为 40.0 并回满血
             for (java.util.UUID pid : plugin.getPlayerManager().getAlivePlayers()) {
@@ -287,7 +289,7 @@ public class GameManager {
         }
 
         if (countdownTime <= 0) {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "hytr stop");
+            Bukkit.getPluginManager().callEvent(new GameEndEvent("game_1", this.gameTimeSeconds));
             
             Bukkit.broadcastMessage(plugin.getMessageManager().getMessage("game.restarting"));
 
